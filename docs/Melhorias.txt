@@ -1,0 +1,125 @@
+1. Sistema de Metas Financeiras
+
+Analisando o app "Controlada", implementar um sistema completo de metas financeiras:
+
+CONTEXTO: O card "Meta do Mês" (linha 99-103 index.html) atualmente apenas mostra sobra disponível via função atualizarEstatisticasHero() no main.js.
+
+IMPLEMENTAR:
+1. Nova seção na aba Configurações para definir metas por categoria
+2. Modificar função atualizarEstatisticasHero() para calcular progresso das metas
+3. Adicionar indicadores visuais de progresso no card existente
+4. Criar alertas quando metas ultrapassarem 80% e 100%
+5. Persistir dados no localStorage como 'metas_usuario'
+
+ARQUIVOS A MODIFICAR:
+- index.html: adicionar formulário de metas na section configurações
+- main.js: funções getMetas(), setMetas(), calcularProgressoMetas()
+- style.css: estilos para barras de progresso e alertas
+
+INTEGRAÇÕES NECESSÁRIAS:
+- Conectar com sistema de categorias existente (getTodasCategorias())
+- Usar formatarReal() para valores monetários
+- Integrar com getTotalGastosMes() para cálculos
+
+2. Dashboard de Estatísticas Avançadas
+
+Expandir estatísticas do app "Controlada" criando dashboard avançado:
+
+CONTEXTO: Hero sections já existem em tab-form e tab-historico com cards básicos de estatísticas.
+
+IMPLEMENTAR:
+1. Nova aba "📈 Dashboard" nas tabs principais (linha 72-76 index.html)
+2. Expandir funções existentes:
+   - getGastosHoje() -> adicionar getTendenciaGastos()
+   - getTotalGastosMes() -> adicionar getComparativoMesAnterior()
+   - Criar getDistribuicaoMetodosPagamento()
+
+NOVOS COMPONENTES:
+- Cards de insights: maior gasto, categoria dominante, projeção mensal
+- Mini-gráficos usando Chart.js (já importado)
+- Timeline dos últimos 5 gastos importantes (>média)
+
+REUTILIZAR:
+- Estrutura .hero-stats existente
+- Funções formatarReal(), getCurrentCycleKeyStr()
+- Paleta de cores do :root CSS
+
+3. Sistema de Gastos Recorrentes
+
+Implementar gastos recorrentes no app "Controlada":
+
+CONTEXTO: Sistema atual suporta parcelas (linha 160-163) mas não recorrência automática.
+
+MODIFICAR FORMULÁRIO EXISTENTE:
+- Adicionar checkbox "Gasto recorrente" no form-gasto
+- Campo frequência: mensal/semanal/anual
+- Modificar evento submit do formGasto (linha ~550 main.js)
+
+NOVA ESTRUTURA DE DADOS:
+localStorage 'gastos_recorrentes' = [{
+  id, descricao, valor, categoria, metodo, frequencia,
+  proximaData, ativo, criadoEm
+}]
+
+IMPLEMENTAR:
+1. Função verificarGastosRecorrentes() executada no DOMContentLoaded
+2. Notificação visual na navbar quando há recorrentes pendentes
+3. Auto-lançamento com confirmação do usuário
+4. Seção "Gastos Recorrentes" na aba Configurações para gerenciar
+
+INTEGRAR COM:
+- Funções existentes de salvar gastos
+- Sistema de categorias atual
+- Seletor de mês/ano para lançamentos futuros
+
+4. Modo Escuro/Temas
+
+Implementar sistema de temas baseado nas variáveis CSS existentes:
+
+CONTEXTO: Paleta atual definida em :root (style.css) com tons de verde.
+
+CRIAR VARIAÇÕES:
+- Modo escuro: inversão das cores atuais mantendo hierarquia
+- Temas alternativos: azul, roxo, laranja
+
+IMPLEMENTAR:
+1. Toggle na navbar ao lado do filtro de mês
+2. Função switchTheme() que altera propriedades CSS
+3. Persistência em localStorage 'tema_preferido'
+4. Transições CSS suaves (transition: all 0.3s)
+
+MODIFICAR:
+- Adicionar data-theme="dark" no body
+- CSS alternativo para cada tema
+- Ajustar cores dos gráficos Chart.js por tema
+
+MANTER:
+- Estrutura HTML atual
+- Funcionalidades existentes
+- Responsividade
+
+5. Responsividade Mobile
+
+Otimizar experiência mobile mantendo estrutura atual:
+
+CONTEXTO: Layout atual usa .sidebar-col + .main-content com CSS Grid/Flexbox.
+
+IMPLEMENTAR:
+1. Menu hambúrguer que oculta/mostra sidebar em mobile
+2. Bottom navigation para tabs principais em telas pequenas
+3. Gestos swipe para navegação entre abas
+
+MODIFICAR CSS:
+- Media queries existentes em @media (max-width: 768px)
+- Transform sidebar para slide-in/out
+- Stack vertical dos hero-stats em mobile
+
+JAVASCRIPT:
+- Touch events para gestos
+- Detectar orientação da tela
+- Otimizar modais para mobile (fullscreen em telas pequenas)
+
+MANTER:
+- Funcionalidades desktop completas
+- Estrutura de dados
+- Performance

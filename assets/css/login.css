@@ -1,0 +1,90 @@
+/* login.css - Estilo exclusivo para tela de login Controlada */
+body {
+    background: var(--timberwolf);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+}
+.login-container {
+    background: var(--ash-gray);
+    border-radius: 18px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+    padding: 2.5rem 2.2rem 2.2rem 2.2rem;
+    max-width: 370px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+}
+.login-container .logo-img {
+    height: 64px;
+    margin-bottom: 0.7rem;
+}
+.login-container h1 {
+    color: var(--dark-moss-green);
+    font-size: 2.1rem;
+    font-weight: 900;
+    margin-bottom: 0.7rem;
+    letter-spacing: 1px;
+}
+.login-container form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    align-items: stretch;
+}
+.login-container form > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.login-container label {
+    color: var(--dark-moss-green);
+    font-weight: 500;
+    margin-bottom: 0.1rem;
+    font-size: 1.05rem;
+}
+.login-container input[type="text"],
+.login-container input[type="password"] {
+    padding: 0.55rem 0.9rem;
+    border: 1.5px solid var(--yellow-green);
+    border-radius: 7px;
+    font-size: 1.08rem;
+    background: #fff;
+    font-family: 'Rubik', sans-serif;
+    font-weight: 400;
+    outline: none;
+    transition: border 0.2s;
+}
+.login-container input[type="text"]:focus,
+.login-container input[type="password"]:focus {
+    border: 1.5px solid var(--dark-moss-green);
+}
+.login-container button {
+    background: var(--yellow-green);
+    color: var(--black);
+    border: none;
+    border-radius: 7px;
+    padding: 0.7rem 0;
+    font-size: 1.13rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    margin-top: 0.2rem;
+    width: 100%;
+    letter-spacing: 0.5px;
+}
+.login-container button:hover {
+    background: var(--dark-moss-green);
+    color: #fff;
+}
+@media (max-width: 500px) {
+    .login-container {
+        padding: 1.2rem 0.5rem 1.2rem 0.5rem;
+        max-width: 98vw;
+    }
+}

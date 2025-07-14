@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Controlada</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <img src="assets/images/logo.png" alt="Logo" class="logo-img">
+        <form id="login-form">
+            <div>
+                <label for="usuario">Usuário</label>
+                <input type="text" id="usuario" name="usuario" required>
+            </div>
+            <div>
+                <label for="senha">Senha</label>
+                <input type="password" id="senha" name="senha" required>
+            </div>
+            <button type="submit">Entrar</button>
+        </form>
+        <div style="margin-top: 1rem;">
+            <a href="#" id="mostrar-cadastro" style="color: var(--dark-moss-green); font-weight: 500; text-decoration: underline; cursor: pointer;">Cadastrar</a>
+        </div>
+        <form id="cadastro-form" style="display:none; margin-top: 1.5rem; width: 100%; flex-direction: column; gap: 1.1rem; align-items: stretch;">
+            <div>
+                <label for="novo-usuario">Novo usuário</label>
+                <input type="text" id="novo-usuario" name="novo-usuario" required>
+            </div>
+            <div>
+                <label for="nova-senha">Nova senha</label>
+                <input type="password" id="nova-senha" name="nova-senha" required>
+            </div>
+            <button type="submit">Cadastrar</button>
+            <button type="button" id="voltar-login" style="margin-top:0.5rem; background: var(--ash-gray); color: var(--dark-moss-green);">Voltar para login</button>
+        </form>
+    </div>
+    <script src="assets/js/login.js"></script>
+</body>
+</html>
