@@ -1,0 +1,75 @@
+/* Estilos para textos longos nos cards do dashboard */
+.stat-number.long-text {
+    font-size: 1.1rem !important;
+    line-height: 1.3;
+    word-break: break-word;
+    hyphens: auto;
+}
+
+.stat-label.long-text {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    font-size: 0.75rem;
+    line-height: 1.3;
+}
+
+/* Melhorias adicionais para cards do dashboard */
+.dashboard-stats .stat-card {
+    transition: all 0.3s ease;
+    min-height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.dashboard-stats .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(154, 205, 50, 0.2);
+}
+
+.dashboard-stats .stat-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.dashboard-stats .stat-number {
+    margin-top: 0.25rem;
+    display: block;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.dashboard-stats .stat-label {
+    display: block;
+    max-width: 100%;
+}
+
+/* Ajustes para telas menores */
+@media (max-width: 600px) {
+    .dashboard-stats .stat-card {
+        padding: 1rem;
+        gap: 0.8rem;
+        min-height: 95px;
+    }
+    
+    .dashboard-stats .stat-number {
+        font-size: 1.1rem;
+    }
+    
+    .dashboard-stats .stat-number.long-text {
+        font-size: 1rem !important;
+    }
+    
+    .dashboard-stats .stat-label {
+        font-size: 0.7rem;
+    }
+    
+    .dashboard-stats .stat-icon {
+        font-size: 1.5rem;
+        width: 2rem;
+        height: 2rem;
+    }
+}

@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/dashboard-improvements.css">
+    <link rel="stylesheet" href="assets/css/missing-styles.css">
     <title>Controlada</title>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -54,16 +56,17 @@
                 <h4 class="sidebar-categoria-titulo">Cadastrar nova categoria</h4>
                 <form id="form-categoria">
                     <div class="sidebar-categoria-form-group">
-                        <label for="nome-categoria" class="sidebar-categoria-label">Nome da categoria:</label>
-                        <input type="text" id="nome-categoria" name="nome-categoria" maxlength="20" required class="sidebar-categoria-input">
+                        <label for="nome-categoria" class="sidebar-categoria-label">Nome da categoria</label>
+                        <input type="text" id="nome-categoria" name="nome-categoria" maxlength="20" required 
+                               class="sidebar-categoria-input" placeholder="Ex: Alimentação, Transporte...">
                     </div>
                     <div class="sidebar-categoria-form-group sidebar-categoria-form-group-mt">
-                        <label for="cor-categoria" class="sidebar-categoria-label">Cor:</label>
-                        <input type="color" id="cor-categoria" name="cor-categoria" value="#b388ff" class="sidebar-categoria-color">
+                        <label for="cor-categoria" class="sidebar-categoria-label">Cor da categoria</label>
+                        <input type="color" id="cor-categoria" name="cor-categoria" value="#9acd32" class="sidebar-categoria-color">
                     </div>
                     <button type="submit" class="sidebar-categoria-btn">Cadastrar</button>
                 </form>
-                <h4 class="sidebar-categoria-titulo" style="margin-top:1.5rem;">Minhas categorias</h4>
+                <h4 class="sidebar-categoria-titulo" style="margin-top:2rem;">Minhas categorias</h4>
                 <ul id="lista-categorias" class="sidebar-categoria-list"></ul>
             </div>
         </div>
@@ -73,6 +76,7 @@
                     <div class="tabs">
                         <button class="tab-btn active" data-tab="tab-form">✨ Inserir Gastos</button>
                         <button class="tab-btn" data-tab="tab-historico">📋 Histórico</button>
+                        <button class="tab-btn" data-tab="tab-dashboard">📈 Dashboard</button>
                         <button class="tab-btn" data-tab="tab-graficos">📊 Gráficos</button>
                     </div>
                     <div id="tab-form" class="tab-content">
@@ -368,6 +372,112 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Nova Aba Dashboard -->
+                    <div id="tab-dashboard" class="tab-content" style="display:none;">
+                        <!-- Hero Section Dashboard -->
+                        <div class="dashboard-hero">
+                            <div class="hero-content">
+                                <div class="hero-title">
+                                    <div class="hero-icon">
+                                        <div class="floating-item" style="animation-delay: 0s;">📈</div>
+                                        <div class="floating-item" style="animation-delay: 1s;">💡</div>
+                                        <div class="floating-item" style="animation-delay: 2s;">🎯</div>
+                                        <div class="hero-main-icon">📊</div>
+                                    </div>
+                                    <div>
+                                        <h2>Dashboard Financeiro</h2>
+                                        <p>Insights inteligentes sobre seus gastos e tendências</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Estatísticas Principais -->
+                            <div class="hero-stats dashboard-stats">
+                                <div class="stat-card">
+                                    <div class="stat-icon">💸</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Maior Gasto</span>
+                                        <span class="stat-number" id="maior-gasto">R$ 0,00</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="stat-card">
+                                    <div class="stat-icon">🏆</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Categoria Dominante</span>
+                                        <span class="stat-number" id="categoria-dominante">-</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="stat-card">
+                                    <div class="stat-icon">📊</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Tendência</span>
+                                        <span class="stat-number" id="tendencia-gastos">-</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="stat-card">
+                                    <div class="stat-icon">🔮</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Projeção Mensal</span>
+                                        <span class="stat-number" id="projecao-mensal">R$ 0,00</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Insights e Análises -->
+                        <div class="dashboard-content">
+                            <!-- Cards de Insights -->
+                            <div class="insights-grid">
+                                <div class="insight-card">
+                                    <div class="insight-header">
+                                        <h4>💳 Métodos de Pagamento</h4>
+                                        <div class="insight-icon">📊</div>
+                                    </div>
+                                    <div class="insight-body">
+                                        <canvas id="chart-metodos" width="300" height="200"></canvas>
+                                    </div>
+                                </div>
+                                
+                                <div class="insight-card">
+                                    <div class="insight-header">
+                                        <h4>📈 Comparativo Mensal</h4>
+                                        <div class="insight-icon">📊</div>
+                                    </div>
+                                    <div class="insight-body">
+                                        <div class="comparativo-item">
+                                            <span class="comparativo-label">Mês Atual:</span>
+                                            <span class="comparativo-valor" id="comparativo-atual">R$ 0,00</span>
+                                        </div>
+                                        <div class="comparativo-item">
+                                            <span class="comparativo-label">Mês Anterior:</span>
+                                            <span class="comparativo-valor" id="comparativo-anterior">R$ 0,00</span>
+                                        </div>
+                                        <div class="comparativo-variacao">
+                                            <span id="variacao-percentual">0%</span>
+                                            <span id="variacao-indicador">📊</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="insight-card timeline-card">
+                                    <div class="insight-header">
+                                        <h4>⏰ Últimos Gastos Importantes</h4>
+                                        <div class="insight-icon">🎯</div>
+                                    </div>
+                                    <div class="insight-body">
+                                        <div id="timeline-gastos" class="timeline-container">
+                                            <!-- Timeline será preenchida via JavaScript -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div id="tab-graficos" class="tab-content" style="display:none;">
                         <div class="graficos-header">
                             <h3>📊 Análise de Gastos</h3>
