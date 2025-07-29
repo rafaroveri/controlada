@@ -16,11 +16,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Renda e sobra ---
     const rendaKey = 'renda_usuario';
     const gastosKey = 'gastos_usuario';
+    const metasKey = 'metas_usuario';
+    const recorrentesKey = 'gastos_recorrentes';
     
     // Verificar se elementos existem antes de tentar acessá-los
     const rendaValor = document.getElementById('sidebar-renda-valor');
     const sobraValor = document.getElementById('sidebar-sobra-valor');
     const editarRendaBtn = document.getElementById('editar-renda-btn');
+    const menuToggleBtn = document.getElementById('menu-toggle');
+    const themeToggleBtn = document.getElementById('theme-toggle');
 
     // Modal elementos - verificação segura
     const modal = document.getElementById('modal-editar-renda');
@@ -42,10 +46,63 @@ document.addEventListener('DOMContentLoaded', function () {
     function getGastos() {
         return storageUtil.getJSON(gastosKey, []);
     }
+
+    function getMetas() {
+        return storageUtil.getJSON(metasKey, {});
+    }
+
+    function setMetas(obj) {
+        storageUtil.setJSON(metasKey, obj);
+    }
+
+    function getGastosRecorrentes() {
+        return storageUtil.getJSON(recorrentesKey, []);
+    }
+
+    function setGastosRecorrentes(lista) {
+        storageUtil.setJSON(recorrentesKey, lista);
+    }
     // Função para calcular total de gastos do ciclo financeiro atual
     function getTotalGastosMesAtual() {
         const cicloAtual = getCurrentCycleKeyStr();
         return getGastosDoMesAno(cicloAtual).reduce((soma, g) => soma + parseFloat(g.valor), 0);
+    }
+
+    function calcularProgressoMetas() {
+        const metas = getMetas();
+        const totalMeta = Object.values(metas).reduce((s, v) => s + parseFloat(v || 0), 0);
+        const totalMes = getTotalGastosMes(getCurrentCycleKeyStr());
+        const progresso = totalMeta > 0 ? totalMes / totalMeta : 0;
+        return { totalMeta, totalMes, progresso };
+    }
+
+    function verificarGastosRecorrentes() {
+        const recorrentes = getGastosRecorrentes();
+        if (!recorrentes.length) return;
+        const hoje = new Date().toISOString().slice(0,10);
+        const pendentes = recorrentes.filter(r => r.ativo && r.proximaData <= hoje);
+        const alertEl = document.getElementById('recorrentes-alert');
+        if (alertEl) alertEl.style.display = pendentes.length ? 'inline' : 'none';
+        pendentes.forEach(r => {
+            const confirmar = confirm(`Lançar gasto recorrente "${r.descricao}"?`);
+            if (confirmar) {
+                const lista = getGastos();
+                lista.push({
+                    descricao: r.descricao,
+                    valor: r.valor,
+                    data: hoje,
+                    categoria: r.categoria,
+                    metodoPagamento: r.metodo
+                });
+                storageUtil.setJSON(gastosKey, lista);
+            }
+            let next = new Date(r.proximaData);
+            if (r.frequencia === 'mensal') next.setMonth(next.getMonth() + 1);
+            if (r.frequencia === 'semanal') next.setDate(next.getDate() + 7);
+            if (r.frequencia === 'anual') next.setFullYear(next.getFullYear() + 1);
+            r.proximaData = next.toISOString().slice(0,10);
+        });
+        setGastosRecorrentes(recorrentes);
     }
 
     // --- Configurações de ciclo financeiro ---
@@ -164,6 +221,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Gastos: salvar no localStorage ---
     const formGasto = document.getElementById('form-gasto');
     const selectMesAno = document.getElementById('mes-ano-gastos');
+    const chkRecorrente = document.getElementById('gasto-recorrente');
+    const freqRecorrente = document.getElementById('freq-recorrente');
+    const freqGroup = document.getElementById('freq-recorrente-group');
 
     // Função para obter todos os meses/anos presentes nos gastos
     function getMesesAnosDisponiveis() {
@@ -591,6 +651,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const metodoSelecionado = document.getElementById('metodo-pagamento').value;
             const outroMetodo = document.getElementById('outro-metodo').value.trim();
             const metodoPagamento = metodoSelecionado === 'Outro' ? (outroMetodo || 'Outro') : metodoSelecionado;
+            const ehRecorrente = chkRecorrente && chkRecorrente.checked;
+            const frequencia = freqRecorrente ? freqRecorrente.value : 'mensal';
 
             if (!descricao || isNaN(valorTotal) || !data || isNaN(parcelas) || parcelas < 1 || !categoria || !metodoPagamento) return;
             const lista = getGastos();
@@ -613,6 +675,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
             storageUtil.setJSON(gastosKey, lista);
+
+            if (ehRecorrente) {
+                const rec = getGastosRecorrentes();
+                rec.push({
+                    id: crypto.randomUUID ? crypto.randomUUID() : Date.now(),
+                    descricao,
+                    valor: valorTotal,
+                    categoria,
+                    metodo: metodoPagamento,
+                    frequencia,
+                    proximaData: data,
+                    ativo: true,
+                    criadoEm: new Date().toISOString()
+                });
+                setGastosRecorrentes(rec);
+            }
             // Atualiza select de meses e seleciona o ciclo correto baseado no início do mês financeiro
             preencherSelectMesAno();
             const { year: cyYear, month: cyMonth } = getCycleKeyForDate(data);
@@ -636,6 +714,28 @@ document.addEventListener('DOMContentLoaded', function () {
     preencherSelectMesAno();
     selectMesAno.value = getCurrentCycleKeyStr();
     atualizarTudoPorMes();
+    verificarGastosRecorrentes();
+
+    if (menuToggleBtn) {
+        menuToggleBtn.addEventListener('click', () => {
+            document.querySelector('.sidebar-col').classList.toggle('show-sidebar');
+        });
+    }
+
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+        localStorage.setItem('tema_preferido', theme);
+    }
+
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            const current = document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+            applyTheme(current === 'dark' ? 'default' : 'dark');
+        });
+    }
+
+    const savedTheme = localStorage.getItem('tema_preferido') || 'default';
+    applyTheme(savedTheme);
 
     const navLinks = document.querySelectorAll('.nav-list a');
     const logoutLink = document.getElementById('logout-link');
@@ -651,6 +751,12 @@ document.addEventListener('DOMContentLoaded', function () {
         selectMetodo.addEventListener('change', function() {
             const divOutro = document.getElementById('div-outro-metodo');
             divOutro.style.display = this.value === 'Outro' ? 'block' : 'none';
+        });
+    }
+
+    if (chkRecorrente && freqGroup) {
+        chkRecorrente.addEventListener('change', function() {
+            freqGroup.style.display = this.checked ? 'block' : 'none';
         });
     }
 
@@ -682,6 +788,29 @@ document.addEventListener('DOMContentLoaded', function () {
             const sectionName = link.textContent.trim();
             showSection(sectionName);
         });
+    });
+
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) {
+        bottomNav.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelector(`.tab-btn[data-tab="${btn.dataset.tab}"]`).click();
+            });
+        });
+    }
+
+    let touchStartX = 0;
+    document.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+    });
+    document.addEventListener('touchend', e => {
+        const diff = e.changedTouches[0].screenX - touchStartX;
+        if (Math.abs(diff) > 50) {
+            const tabs = Array.from(tabButtons);
+            let idx = tabs.findIndex(t => t.classList.contains('active'));
+            if (diff < 0 && idx < tabs.length -1) idx++; else if (diff > 0 && idx > 0) idx--;
+            tabs[idx].click();
+        }
     });
 
     // --- Sub-abas em Gráficos ---
@@ -1029,6 +1158,48 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 alert('Por favor, insira um dia entre 1 e 28.');
             }
+        });
+    }
+
+    // ----- Metas por categoria -----
+    const formMetas = document.getElementById('form-metas');
+    const metasContainer = document.getElementById('metas-container');
+
+    function preencherMetasForm() {
+        if (!metasContainer) return;
+        metasContainer.innerHTML = '';
+        const categorias = getTodasCategorias();
+        const metas = getMetas();
+        categorias.forEach(cat => {
+            const div = document.createElement('div');
+            div.className = 'form-group';
+            const label = document.createElement('label');
+            label.textContent = cat.nome;
+            label.setAttribute('for', 'meta-' + cat.id);
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '0.01';
+            input.id = 'meta-' + cat.id;
+            input.value = metas[cat.id] || '';
+            div.appendChild(label);
+            div.appendChild(input);
+            metasContainer.appendChild(div);
+        });
+    }
+
+    if (formMetas) {
+        preencherMetasForm();
+        formMetas.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const metas = {};
+            getTodasCategorias().forEach(cat => {
+                const val = parseFloat(document.getElementById('meta-' + cat.id).value);
+                if (!isNaN(val)) metas[cat.id] = val;
+            });
+            setMetas(metas);
+            alert('Metas salvas!');
+            atualizarEstatisticasHero();
         });
     }
     
@@ -1695,6 +1866,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function atualizarEstatisticasHero() {
         const gastosHojeElement = document.getElementById('gastos-hoje');
         const metaMesElement = document.getElementById('meta-mes');
+        const metaBar = document.getElementById('meta-progress-bar');
         
         if (gastosHojeElement) {
             const quantidadeHoje = getQuantidadeGastosHoje();
@@ -1708,15 +1880,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         
         if (metaMesElement) {
-            // Calcular sobra disponível
-            const renda = getRenda();
-            const totalMes = getTotalGastosMes(getCurrentCycleKeyStr());
-            const sobra = renda - totalMes;
-            
-            if (sobra > 0) {
-                metaMesElement.textContent = formatarReal(sobra);
+            const { totalMeta, progresso } = calcularProgressoMetas();
+            if (totalMeta > 0) {
+                metaMesElement.textContent = `${Math.min(progresso*100,100).toFixed(0)}%`;
+                if (metaBar) metaBar.style.width = Math.min(progresso*100,100) + '%';
+                if (progresso >= 1 && !metaMesElement.classList.contains('meta-excedida')) {
+                    metaMesElement.classList.add('meta-excedida');
+                    alert('Meta do mês atingida!');
+                } else if (progresso >= 0.8) {
+                    metaMesElement.classList.add('meta-quase');
+                } else {
+                    metaMesElement.classList.remove('meta-quase','meta-excedida');
+                }
             } else {
-                metaMesElement.textContent = 'Excedido';
+                metaMesElement.textContent = '-';
+                if (metaBar) metaBar.style.width = '0%';
             }
         }
     }
