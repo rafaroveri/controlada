@@ -587,10 +587,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const valorTotal = parseFloat(document.getElementById('valor').value);
             const data = document.getElementById('data').value;
             const parcelas = parseInt(document.getElementById('parcelas').value) || 1;
-            const categoriaSelect = document.getElementById('categoria');
-            const categoria = categoriaSelect.value;
-            const categoriaId = categoriaSelect.options[categoriaSelect.selectedIndex].dataset.id;
-            if (!descricao || isNaN(valorTotal) || !data || isNaN(parcelas) || parcelas < 1 || !categoria) return;
+            const categoria = document.getElementById('categoria').value;
+            const metodoSelecionado = document.getElementById('metodo-pagamento').value;
+            const outroMetodo = document.getElementById('outro-metodo').value.trim();
+            const metodoPagamento = metodoSelecionado === 'Outro' ? (outroMetodo || 'Outro') : metodoSelecionado;
+
+            if (!descricao || isNaN(valorTotal) || !data || isNaN(parcelas) || parcelas < 1 || !categoria || !metodoPagamento) return;
             const lista = getGastos();
             // Corrigido: valor de cada parcela
             const valorParcela = Math.round((valorTotal / parcelas) * 100) / 100;
@@ -602,7 +604,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 let valorAtual = (i === parcelas - 1) ? Math.round((valorRestante) * 100) / 100 : valorParcela;
                 valorRestante -= valorAtual;
                 const descParcela = parcelas > 1 ? `${descricao} (${i+1}/${parcelas})` : descricao;
-                lista.push({ descricao: descParcela, valor: valorAtual, data: dataParcela.toISOString().slice(0,10), categoria, categoriaId });
+                lista.push({
+                    descricao: descParcela,
+                    valor: valorAtual,
+                    data: dataParcela.toISOString().slice(0,10),
+                    categoria,
+                    metodoPagamento
+                });
             }
             storageUtil.setJSON(gastosKey, lista);
             // Atualiza select de meses e seleciona o ciclo correto baseado no início do mês financeiro
@@ -1472,9 +1480,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const diasDecorridos = Math.ceil((hoje - dataInicioCiclo) / (1000 * 60 * 60 * 24)) + 1;
         
         const totalAtual = getTotalGastosMes(mesAtual);
-        const mediadiaria = totalAtual / diasDecorridos;
-        
-        return mediadiaria * diasTotaisCiclo;
+        const mediaDiaria = totalAtual / diasDecorridos;
+
+        return mediaDiaria * diasTotaisCiclo;
     }
     
     // Função para obter últimos gastos importantes (acima da média)
@@ -1759,6 +1767,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // Inicializar dashboard na inicialização da página
     if (typeof atualizarDashboard === 'function') {
         atualizarDashboard();
+    }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            getCycleKeyForDate,
+            getTotalGastosMes
+        };
     }
     
 }); // Fecha DOMContentLoaded listener
