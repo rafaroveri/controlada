@@ -597,7 +597,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = document.getElementById('data').value;
             const parcelas = parseInt(document.getElementById('parcelas').value) || 1;
             const categoria = document.getElementById('categoria').value;
-            if (!descricao || isNaN(valorTotal) || !data || isNaN(parcelas) || parcelas < 1 || !categoria) return;
+            const metodoSelecionado = document.getElementById('metodo-pagamento').value;
+            const outroMetodo = document.getElementById('outro-metodo').value.trim();
+            const metodoPagamento = metodoSelecionado === 'Outro' ? (outroMetodo || 'Outro') : metodoSelecionado;
+
+            if (!descricao || isNaN(valorTotal) || !data || isNaN(parcelas) || parcelas < 1 || !categoria || !metodoPagamento) return;
             const lista = getGastos();
             // Corrigido: valor de cada parcela
             const valorParcela = Math.round((valorTotal / parcelas) * 100) / 100;
@@ -609,7 +613,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 let valorAtual = (i === parcelas - 1) ? Math.round((valorRestante) * 100) / 100 : valorParcela;
                 valorRestante -= valorAtual;
                 const descParcela = parcelas > 1 ? `${descricao} (${i+1}/${parcelas})` : descricao;
-                lista.push({ descricao: descParcela, valor: valorAtual, data: dataParcela.toISOString().slice(0,10), categoria });
+                lista.push({
+                    descricao: descParcela,
+                    valor: valorAtual,
+                    data: dataParcela.toISOString().slice(0,10),
+                    categoria,
+                    metodoPagamento
+                });
             }
             localStorage.setItem(gastosKey, JSON.stringify(lista));
             // Atualiza select de meses e seleciona o ciclo correto baseado no início do mês financeiro
