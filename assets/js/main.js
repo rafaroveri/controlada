@@ -34,14 +34,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getRenda() {
-        return parseFloat(localStorage.getItem(rendaKey)) || 0;
+        return storageUtil.getNumber(rendaKey);
     }
     function setRenda(valor) {
-        localStorage.setItem(rendaKey, valor);
+        storageUtil.setNumber(rendaKey, valor);
     }
     function getGastos() {
-        const lista = JSON.parse(localStorage.getItem(gastosKey) || '[]');
-        return lista;
+        return storageUtil.getJSON(gastosKey, []);
     }
     // Função para calcular total de gastos do ciclo financeiro atual
     function getTotalGastosMesAtual() {
@@ -51,8 +50,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Configurações de ciclo financeiro ---
      const configKey = 'config_inicio_mes';
-     function getInicioMes() { return parseInt(localStorage.getItem(configKey), 10) || 1; }
-     function setInicioMes(dia) { localStorage.setItem(configKey, dia); }
+     function getInicioMes() { return storageUtil.getNumber(configKey) || 1; }
+     function setInicioMes(dia) { storageUtil.setNumber(configKey, dia); }
 
      // Helper: determina o ciclo (ano e mês) de uma data com base no dia de início
      function getCycleKeyForDate(data) {
@@ -262,38 +261,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Carregar categorias do localStorage ou usar padrão
     function getCategoriasPersonalizadas() {
-        return JSON.parse(localStorage.getItem('categorias_usuario') || '[]');
+        return categoriasService.getPersonalizadas();
     }
     function setCategoriasPersonalizadas(lista) {
-        localStorage.setItem('categorias_usuario', JSON.stringify(lista));
+        categoriasService.setPersonalizadas(lista);
     }
-    // Persist removed categories to block deleted defaults and customs
     function getCategoriasRemovidas() {
-        return JSON.parse(localStorage.getItem('categorias_removidas') || '[]');
+        return categoriasService.getRemovidas();
     }
     function setCategoriasRemovidas(lista) {
-        localStorage.setItem('categorias_removidas', JSON.stringify(lista));
+        categoriasService.setRemovidas(lista);
     }
     function getTodasCategorias() {
-        const padrao = [
-            { nome: 'Alimentação', valor: 'alimentacao', cor: '#ffb347' },
-            { nome: 'Transporte', valor: 'transporte', cor: '#6ec6ff' },
-            { nome: 'Lazer', valor: 'lazer', cor: '#b388ff' },
-            { nome: 'Saúde', valor: 'saude', cor: '#81c784' },
-            { nome: 'Outros', valor: 'outros', cor: '#e0e0e0' }
-        ];
-        const personalizadas = getCategoriasPersonalizadas();
-        const removidas = getCategoriasRemovidas();
-        return [...padrao, ...personalizadas].filter(cat => !removidas.includes(cat.valor));
+        return categoriasService.getTodas();
     }
     function atualizarComboboxCategorias() {
         const categorias = getTodasCategorias();
         selectCategoria.innerHTML = '';
         categorias.forEach(cat => {
             const opt = document.createElement('option');
-            opt.value = cat.valor || cat.nome.toLowerCase().replace(/[^a-z0-9]/gi, '-');
+            opt.value = cat.valor;
             opt.textContent = cat.nome;
-            opt.setAttribute('data-cor', cat.cor);
+            opt.dataset.cor = cat.cor;
+            opt.dataset.id = cat.id;
             selectCategoria.appendChild(opt);
         });
     }
@@ -311,7 +301,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 alert('Já existe uma categoria com esse nome!');
                 return;
             }
-            lista.push({ nome, valor, cor });
+            const id = categoriasService.generateId();
+            lista.push({ id, nome, valor, cor });
             setCategoriasPersonalizadas(lista);
             atualizarComboboxCategorias();
             atualizarListaCategorias();
@@ -367,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
             btn.title = `Excluir categoria ${cat.nome}`;
             btn.addEventListener('click', function() {
-                tentarExcluirCategoria(cat.valor, cat.nome);
+                tentarExcluirCategoria(cat.id, cat.nome);
             });
             
             li.appendChild(infoDiv);
@@ -396,20 +387,20 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Tenta excluir categoria, verificando uso em gastos
-    function tentarExcluirCategoria(valor, nome) {
+    function tentarExcluirCategoria(id, nome) {
         const gastos = getGastos();
-        const usados = gastos.filter(g => g.categoria === valor);
+        const usados = gastos.filter(g => g.categoriaId === id);
         if (usados.length) {
             abrirModalCategoriaEmUso(nome, usados.length);
             return;
         }
         let personalizadas = getCategoriasPersonalizadas();
-        if (personalizadas.some(c => c.valor === valor)) {
-            personalizadas = personalizadas.filter(c => c.valor !== valor);
+        if (personalizadas.some(c => c.id === id)) {
+            personalizadas = personalizadas.filter(c => c.id !== id);
             setCategoriasPersonalizadas(personalizadas);
         } else {
             const removidas = getCategoriasRemovidas();
-            removidas.push(valor);
+            removidas.push(id);
             setCategoriasRemovidas(removidas);
         }
         atualizarComboboxCategorias();
@@ -575,7 +566,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (indexReal > -1) {
             listaCompleta.splice(indexReal, 1);
-            localStorage.setItem(gastosKey, JSON.stringify(listaCompleta));
+            storageUtil.setJSON(gastosKey, listaCompleta);
             // refresca opções e exibição mantendo o mês selecionado
             preencherSelectMesAno();
             selectMesAno.value = mesAno;
@@ -596,7 +587,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const valorTotal = parseFloat(document.getElementById('valor').value);
             const data = document.getElementById('data').value;
             const parcelas = parseInt(document.getElementById('parcelas').value) || 1;
-            const categoria = document.getElementById('categoria').value;
+            const categoriaSelect = document.getElementById('categoria');
+            const categoria = categoriaSelect.value;
+            const categoriaId = categoriaSelect.options[categoriaSelect.selectedIndex].dataset.id;
             if (!descricao || isNaN(valorTotal) || !data || isNaN(parcelas) || parcelas < 1 || !categoria) return;
             const lista = getGastos();
             // Corrigido: valor de cada parcela
@@ -609,9 +602,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 let valorAtual = (i === parcelas - 1) ? Math.round((valorRestante) * 100) / 100 : valorParcela;
                 valorRestante -= valorAtual;
                 const descParcela = parcelas > 1 ? `${descricao} (${i+1}/${parcelas})` : descricao;
-                lista.push({ descricao: descParcela, valor: valorAtual, data: dataParcela.toISOString().slice(0,10), categoria });
+                lista.push({ descricao: descParcela, valor: valorAtual, data: dataParcela.toISOString().slice(0,10), categoria, categoriaId });
             }
-            localStorage.setItem(gastosKey, JSON.stringify(lista));
+            storageUtil.setJSON(gastosKey, lista);
             // Atualiza select de meses e seleciona o ciclo correto baseado no início do mês financeiro
             preencherSelectMesAno();
             const { year: cyYear, month: cyMonth } = getCycleKeyForDate(data);
@@ -1807,54 +1800,40 @@ document.addEventListener('DOMContentLoaded', function () {
     // ==========================================
     
     // Aguardar um frame para garantir que tudo está renderizado
-    requestAnimationFrame(() => {
-        const tabButtons = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
-        
-        if (tabButtons.length > 0 && tabContents.length > 0) {
-            // Limpar qualquer listener anterior
-            tabButtons.forEach(btn => {
-                const newBtn = btn.cloneNode(true);
-                btn.parentNode.replaceChild(newBtn, btn);
-            });
-            
-            // Reselecionar após clonagem
-            const freshTabButtons = document.querySelectorAll('.tab-btn');
-            const freshTabContents = document.querySelectorAll('.tab-content');
-            
-            freshTabButtons.forEach((btn, index) => {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Remove active de todos
-                    freshTabButtons.forEach(b => b.classList.remove('active'));
-                    freshTabContents.forEach(c => c.style.display = 'none');
-                    
-                    // Ativa atual
-                    this.classList.add('active');
-                    const target = this.dataset.tab;
-                    const targetElement = document.getElementById(target);
-                    
-                    if (targetElement) {
-                        targetElement.style.display = 'block';
-                        
-                        // Callbacks específicos
-                        if (target === 'tab-graficos') {
-                            setTimeout(() => {
-                                if (typeof renderCategoriaChart === 'function') renderCategoriaChart();
-                                if (typeof renderMensalChart === 'function') renderMensalChart();
-                            }, 100);
-                        }
-                        if (target === 'tab-dashboard') {
-                            setTimeout(() => {
-                                if (typeof atualizarDashboard === 'function') atualizarDashboard();
-                            }, 100);
-                        }
-                    }
-                });
-            });
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    function handleTabClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        tabButtons.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.style.display = 'none');
+
+        this.classList.add('active');
+        const target = this.dataset.tab;
+        const targetElement = document.getElementById(target);
+
+        if (targetElement) {
+            targetElement.style.display = 'block';
+
+            if (target === 'tab-graficos') {
+                setTimeout(() => {
+                    if (typeof renderCategoriaChart === 'function') renderCategoriaChart();
+                    if (typeof renderMensalChart === 'function') renderMensalChart();
+                }, 100);
+            }
+            if (target === 'tab-dashboard') {
+                setTimeout(() => {
+                    if (typeof atualizarDashboard === 'function') atualizarDashboard();
+                }, 100);
+            }
         }
+    }
+
+    tabButtons.forEach(btn => {
+        btn.removeEventListener('click', handleTabClick);
+        btn.addEventListener('click', handleTabClick);
     });
     
     // Inicializar dashboard na inicialização da página
