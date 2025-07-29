@@ -148,6 +148,15 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 Se você encontrar algum problema ou tiver sugestões, por favor abra uma [issue](https://github.com/[seu-usuario]/controlada/issues).
 
+## 🧪 Testes
+
+Para executar os testes unitários utilize o npm:
+
+```bash
+npm install
+npm test
+```
+
 ---
 
 ⭐ Se este projeto te ajudou, não esqueça de dar uma estrela!

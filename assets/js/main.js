@@ -1861,5 +1861,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (typeof atualizarDashboard === 'function') {
         atualizarDashboard();
     }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            getCycleKeyForDate,
+            getTotalGastosMes
+        };
+    }
     
 }); // Fecha DOMContentLoaded listener

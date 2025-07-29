@@ -1,0 +1,19 @@
+{
+  "name": "controlada",
+  "version": "1.0.0",
+  "description": "Um sistema moderno de controle financeiro pessoal desenvolvido com HTML, CSS e JavaScript vanilla.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
