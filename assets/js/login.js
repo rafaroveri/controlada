@@ -21,14 +21,22 @@ document.addEventListener('DOMContentLoaded', function() {
         mostrarCadastro.style.display = 'block';
     });
 
+    const ADMIN_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
+
+    async function hashPassword(pass) {
+        const data = new TextEncoder().encode(pass);
+        const digest = await crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     // Login
-    loginForm.addEventListener('submit', function(e) {
+    loginForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         const usuario = document.getElementById('usuario').value.trim();
         const senha = document.getElementById('senha').value;
-        // Busca usuários cadastrados
-        const usuarios = JSON.parse(localStorage.getItem('usuarios') || '{}');
-        if ((usuario === 'admin' && senha === '1234') || (usuarios[usuario] && usuarios[usuario] === senha)) {
+        const usuarios = storageUtil.getJSON('usuarios', {});
+        const senhaHash = await hashPassword(senha);
+        if ((usuario === 'admin' && senhaHash === ADMIN_HASH) || (usuarios[usuario] && usuarios[usuario] === senhaHash)) {
             localStorage.setItem('autenticado', 'true');
             window.location.href = 'index.html';
         } else {
@@ -37,18 +45,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Cadastro
-    cadastroForm.addEventListener('submit', function(e) {
+    cadastroForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         const novoUsuario = document.getElementById('novo-usuario').value.trim();
         const novaSenha = document.getElementById('nova-senha').value;
         if (!novoUsuario || !novaSenha) return;
-        let usuarios = JSON.parse(localStorage.getItem('usuarios') || '{}');
+        let usuarios = storageUtil.getJSON('usuarios', {});
         if (usuarios[novoUsuario] || novoUsuario === 'admin') {
             alert('Usuário já existe!');
             return;
         }
-        usuarios[novoUsuario] = novaSenha;
-        localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        usuarios[novoUsuario] = await hashPassword(novaSenha);
+        storageUtil.setJSON('usuarios', usuarios);
         alert('Cadastro realizado com sucesso! Faça login.');
         cadastroForm.reset();
         cadastroForm.style.display = 'none';
