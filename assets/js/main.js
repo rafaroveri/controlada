@@ -1559,9 +1559,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const diasDecorridos = Math.ceil((hoje - dataInicioCiclo) / (1000 * 60 * 60 * 24)) + 1;
         
         const totalAtual = getTotalGastosMes(mesAtual);
-        const mediadiaria = totalAtual / diasDecorridos;
-        
-        return mediadiaria * diasTotaisCiclo;
+        const mediaDiaria = totalAtual / diasDecorridos;
+
+        return mediaDiaria * diasTotaisCiclo;
     }
     
     // Função para obter últimos gastos importantes (acima da média)
