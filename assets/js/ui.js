@@ -298,7 +298,7 @@
             outroFiltroOption.textContent = `${outroPaymentMethod.icon} Outro`;
             filterMetodoHistorico.appendChild(outroFiltroOption);
 
-            const mesAnoAtual = selectMesAno && selectMesAno.value ? selectMesAno.value : dataService.getCurrentCycleKeyStr();
+            const mesAnoAtual = getMesAnoSelecionado();
             const gastosMes = dataService.getGastosDoMesAno(mesAnoAtual) || [];
             const valoresExistentes = new Set([...basePaymentMethods.map(m => m.value), ...beneficios.map(b => b.nome), outroPaymentMethod.value]);
             gastosMes.forEach(gasto => {
@@ -539,6 +539,11 @@
     // --- Gastos: salvar no localStorage ---
     const formGasto = document.getElementById('form-gasto');
     const selectMesAno = document.getElementById('mes-ano-gastos');
+
+    function getMesAnoSelecionado() {
+        const valorSelecionado = (selectMesAno && selectMesAno.value) ? selectMesAno.value : '';
+        return valorSelecionado || dataService.getCurrentCycleKeyStr();
+    }
     const chkRecorrente = document.getElementById('gasto-recorrente');
     const freqRecorrente = document.getElementById('freq-recorrente');
     const freqGroup = document.getElementById('freq-recorrente-group');
@@ -546,6 +551,10 @@
     // Função para obter todos os meses/anos presentes nos gastos
     // Função para preencher o select de meses/anos
     function preencherSelectMesAno() {
+        if (!selectMesAno) {
+            console.warn('Elemento "mes-ano-gastos" não encontrado. Filtro de mês desativado.');
+            return;
+        }
         const meses = dataService.getMesesAnosDisponiveis();
         selectMesAno.innerHTML = '';
         meses.forEach(m => {
@@ -560,7 +569,7 @@
 
     // Função para atualizar sidebar e histórico conforme mês selecionado
     function atualizarTudoPorMes() {
-        const mesAno = selectMesAno.value;
+        const mesAno = getMesAnoSelecionado();
         const detalhes = obterRendaDetalhada();
         const totalGastos = dataService.getTotalGastosMes(mesAno);
         if (rendaValor) {
@@ -891,7 +900,9 @@
             dataService.setGastos(listaCompleta);
             // refresca opções e exibição mantendo o mês selecionado
             preencherSelectMesAno();
-            selectMesAno.value = mesAno;
+            if (selectMesAno) {
+                selectMesAno.value = mesAno;
+            }
             atualizarTudoPorMes();
         } else {
             console.error('Não foi possível encontrar o gasto para exclusão');
@@ -899,17 +910,19 @@
     }
 
     // Eventos do select
-    selectMesAno.addEventListener('change', () => {
-        atualizarTudoPorMes();
-        if (chartsManager) {
-            if (typeof chartsManager.renderCategoriaChart === 'function') {
-                chartsManager.renderCategoriaChart();
+    if (selectMesAno) {
+        selectMesAno.addEventListener('change', () => {
+            atualizarTudoPorMes();
+            if (chartsManager) {
+                if (typeof chartsManager.renderCategoriaChart === 'function') {
+                    chartsManager.renderCategoriaChart();
+                }
+                if (typeof chartsManager.renderMensalChart === 'function') {
+                    chartsManager.renderMensalChart();
+                }
             }
-            if (typeof chartsManager.renderMensalChart === 'function') {
-                chartsManager.renderMensalChart();
-            }
-        }
-    });
+        });
+    }
 
     // Ao adicionar gasto, atualizar select e exibição
     if (formGasto) {
@@ -971,7 +984,9 @@
             // Atualiza select de meses e seleciona o ciclo correto baseado no início do mês financeiro
             preencherSelectMesAno();
             const { year: cyYear, month: cyMonth } = dataService.getCycleKeyForDate(data);
-            selectMesAno.value = `${cyYear}-${String(cyMonth).padStart(2,'0')}`;
+            if (selectMesAno) {
+                selectMesAno.value = `${cyYear}-${String(cyMonth).padStart(2,'0')}`;
+            }
             // Atualiza UI e gráficos para o ciclo selecionado
             atualizarTudoPorMes();
             if (chartsManager) {
@@ -995,7 +1010,9 @@
 
     // Inicialização
     preencherSelectMesAno();
-    selectMesAno.value = dataService.getCurrentCycleKeyStr();
+    if (selectMesAno) {
+        selectMesAno.value = dataService.getCurrentCycleKeyStr();
+    }
     atualizarTudoPorMes();
     verificarGastosRecorrentes();
     if (chartsManager && typeof chartsManager.refreshAll === 'function') {
@@ -1251,7 +1268,7 @@
     
     // Função para aplicar todos os filtros
     function aplicarFiltros() {
-        const mesAno = selectMesAno ? selectMesAno.value : dataService.getCurrentCycleKeyStr();
+        const mesAno = getMesAnoSelecionado();
         gastosOriginais = dataService.getGastosDoMesAno(mesAno);
 
         let gastosFiltrados = [...gastosOriginais];
@@ -1340,7 +1357,7 @@
         document.querySelectorAll('.btn-delete-modern').forEach(btn => {
             btn.addEventListener('click', function() {
                 const idx = parseInt(this.getAttribute('data-idx'));
-                const mesAno = selectMesAno.value;
+                const mesAno = getMesAnoSelecionado();
                 abrirModalConfirmarExclusao(mesAno, idx);
             });
         });
@@ -1409,7 +1426,7 @@
         document.querySelectorAll('.btn-delete-modern').forEach(btn => {
             btn.addEventListener('click', function() {
                 const idx = parseInt(this.getAttribute('data-idx'));
-                const mesAno = selectMesAno.value;
+                const mesAno = getMesAnoSelecionado();
                 abrirModalConfirmarExclusao(mesAno, idx);
             });
         });
