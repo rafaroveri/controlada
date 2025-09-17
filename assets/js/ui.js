@@ -760,11 +760,13 @@
     const textoCategoriaEmUso = document.getElementById('texto-categoria-em-uso');
 
     function abrirModalConfirmarExclusao(mesAno, idx) {
+        if (!modalConfirmar) return;
         mesAnoParaExcluir = mesAno;
         idxParaExcluir = idx;
         modalConfirmar.style.display = 'flex';
     }
     function fecharModalConfirmarExclusao() {
+        if (!modalConfirmar) return;
         modalConfirmar.style.display = 'none';
         mesAnoParaExcluir = null;
         idxParaExcluir = null;
@@ -772,40 +774,57 @@
 
     // Funções para o modal de categoria em uso
     function abrirModalCategoriaEmUso(nomeCategoria, quantidadeGastos) {
+        if (!modalCategoriaEmUso || !textoCategoriaEmUso) return;
         textoCategoriaEmUso.innerHTML = `
-            Não foi possível excluir a categoria <strong>"${nomeCategoria}"</strong> 
+            Não foi possível excluir a categoria <strong>"${nomeCategoria}"</strong>
             pois existem <strong>${quantidadeGastos} gasto(s)</strong> usando-a.
             <br><br>
-            Para excluir esta categoria, primeiro remova ou altere a categoria 
+            Para excluir esta categoria, primeiro remova ou altere a categoria
             dos gastos que a utilizam.
         `;
         modalCategoriaEmUso.style.display = 'flex';
     }
-    
+
     function fecharModalCategoriaEmUso() {
-        modalCategoriaEmUso.style.display = 'none';
-    }
-    btnCancelarExclusao.addEventListener('click', fecharModalConfirmarExclusao);
-    modalConfirmarClose.addEventListener('click', fecharModalConfirmarExclusao);
-    modalConfirmar.addEventListener('click', function(e) {
-        if (e.target === modalConfirmar) fecharModalConfirmarExclusao();
-    });
-    btnConfirmarExclusao.addEventListener('click', function() {
-        if (mesAnoParaExcluir && idxParaExcluir !== null) {
-            excluirGastoDoMes(mesAnoParaExcluir, idxParaExcluir, true);
-            fecharModalConfirmarExclusao();
+        if (modalCategoriaEmUso) {
+            modalCategoriaEmUso.style.display = 'none';
         }
-    });
+    }
+    if (btnCancelarExclusao) {
+        btnCancelarExclusao.addEventListener('click', fecharModalConfirmarExclusao);
+    }
+    if (modalConfirmarClose) {
+        modalConfirmarClose.addEventListener('click', fecharModalConfirmarExclusao);
+    }
+    if (modalConfirmar) {
+        modalConfirmar.addEventListener('click', function(e) {
+            if (e.target === modalConfirmar) fecharModalConfirmarExclusao();
+        });
+    }
+    if (btnConfirmarExclusao) {
+        btnConfirmarExclusao.addEventListener('click', function() {
+            if (mesAnoParaExcluir && idxParaExcluir !== null) {
+                excluirGastoDoMes(mesAnoParaExcluir, idxParaExcluir, true);
+                fecharModalConfirmarExclusao();
+            }
+        });
+    }
     // --- Fim modal confirmação ---
 
     // Event listeners para o modal de categoria em uso
-    btnEntendiCategoria.addEventListener('click', fecharModalCategoriaEmUso);
-    modalCategoriaEmUsoClose.addEventListener('click', fecharModalCategoriaEmUso);
-    modalCategoriaEmUso.addEventListener('click', function(e) {
-        if (e.target === modalCategoriaEmUso) {
-            fecharModalCategoriaEmUso();
-        }
-    });
+    if (btnEntendiCategoria) {
+        btnEntendiCategoria.addEventListener('click', fecharModalCategoriaEmUso);
+    }
+    if (modalCategoriaEmUsoClose) {
+        modalCategoriaEmUsoClose.addEventListener('click', fecharModalCategoriaEmUso);
+    }
+    if (modalCategoriaEmUso) {
+        modalCategoriaEmUso.addEventListener('click', function(e) {
+            if (e.target === modalCategoriaEmUso) {
+                fecharModalCategoriaEmUso();
+            }
+        });
+    }
 
     // Atualiza tabela de gastos para o mês selecionado
     function atualizarHistoricoGastos(mesAno) {
@@ -1021,7 +1040,10 @@
 
     if (menuToggleBtn) {
         menuToggleBtn.addEventListener('click', () => {
-            document.querySelector('.sidebar-col').classList.toggle('show-sidebar');
+            const sidebarCol = document.querySelector('.sidebar-col');
+            if (sidebarCol) {
+                sidebarCol.classList.toggle('show-sidebar');
+            }
         });
     }
 
@@ -1040,13 +1062,20 @@
     const savedTheme = localStorage.getItem('tema_preferido') || 'default';
     applyTheme(savedTheme);
 
-    const navLinks = document.querySelectorAll('.nav-list a');
+    const navLinks = document.querySelectorAll('.nav-list a[data-section]');
     const logoutLink = document.getElementById('logout-link');
     const sections = {
-        'Gastos': document.getElementById('tela-gastos'),
-        'Investimentos': document.getElementById('tela-investimentos'),
-        'Configurações': document.getElementById('tela-configuracoes')
+        'tela-gastos': document.getElementById('tela-gastos'),
+        'tela-investimentos': document.getElementById('tela-investimentos'),
+        'tela-configuracoes': document.getElementById('tela-configuracoes')
     };
+
+    navLinks.forEach(link => {
+        const targetId = link.dataset.section;
+        if (targetId && !sections[targetId]) {
+            sections[targetId] = document.getElementById(targetId);
+        }
+    });
 
     // Mostrar/esconder campo de método personalizado
     if (selectMetodo) {
@@ -1071,24 +1100,30 @@
     }
 
     // Exibe a primeira tela por padrão
-    showSection('Gastos');
+    showSection('tela-gastos');
 
     // Ao trocar de seção, mostrar/ocultar cadastro de categoria
-    function showSection(sectionName) {
-        Object.values(sections).forEach(sec => sec.style.display = 'none');
-        if (sections[sectionName]) {
-            sections[sectionName].style.display = 'block';
+    function showSection(sectionId) {
+        Object.values(sections).forEach(sec => {
+            if (sec) {
+                sec.style.display = 'none';
+            }
+        });
+        if (sections[sectionId]) {
+            sections[sectionId].style.display = 'block';
         }
         if (divCadastroCategoria) {
-            divCadastroCategoria.style.display = (sectionName === 'Gastos') ? 'block' : 'none';
+            divCadastroCategoria.style.display = (sectionId === 'tela-gastos') ? 'block' : 'none';
         }
     }
 
     navLinks.forEach(link => {
         link.addEventListener('click', function (e) {
             e.preventDefault();
-            const sectionName = link.textContent.trim();
-            showSection(sectionName);
+            const sectionId = this.dataset.section;
+            if (sectionId) {
+                showSection(sectionId);
+            }
         });
     });
 
@@ -1096,7 +1131,10 @@
     if (bottomNav) {
         bottomNav.querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelector(`.tab-btn[data-tab="${btn.dataset.tab}"]`).click();
+                const targetButton = document.querySelector(`.tab-btn[data-tab="${btn.dataset.tab}"]`);
+                if (targetButton) {
+                    targetButton.click();
+                }
             });
         });
     }
