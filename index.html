@@ -49,6 +49,10 @@
                         <span class="sidebar-label">Renda mensal:</span>
                         <span class="sidebar-renda-valor" id="sidebar-renda-valor">R$ 0,00</span>
                     </div>
+                    <div class="sidebar-beneficios">
+                        <span class="sidebar-label">Benefícios ativos:</span>
+                        <span class="sidebar-beneficios-valor" id="sidebar-beneficios-valor">R$ 0,00</span>
+                    </div>
                     <div class="sidebar-sobra">
                         <span class="sidebar-label">Sobra do mês:</span>
                         <span class="sidebar-sobra-valor" id="sidebar-sobra-valor">R$ 0,00</span>
@@ -587,15 +591,56 @@
     <div id="modal-editar-renda" class="modal-editar-renda" style="display:none;">
         <div class="modal-editar-renda-content">
             <span class="modal-editar-renda-close" id="modal-editar-renda-close">&times;</span>
-            <h3>Editar renda mensal</h3>
-            <form id="form-modal-renda">
-                <label for="input-modal-renda">Nova renda (R$):</label>
-                <input type="number" id="input-modal-renda" name="input-modal-renda" step="0.01" min="0" required>
-                <div class="modal-editar-renda-actions">
-                    <button type="submit" class="modal-editar-renda-salvar">Salvar</button>
-                    <button type="button" class="modal-editar-renda-cancelar" id="modal-editar-renda-cancelar">Cancelar</button>
-                </div>
-            </form>
+            <h3>Configurar renda e benefícios</h3>
+            <div class="modal-renda-body">
+                <section class="modal-renda-section">
+                    <h4>Renda base</h4>
+                    <p class="modal-renda-description">Defina aqui sua renda fixa mensal. Esse valor será somado aos benefícios ativos.</p>
+                    <form id="form-modal-renda" class="modal-renda-form">
+                        <label for="input-modal-renda">Renda mensal fixa (R$)</label>
+                        <input type="number" id="input-modal-renda" name="input-modal-renda" step="0.01" min="0" required>
+                        <button type="submit" class="modal-editar-renda-salvar">Salvar renda</button>
+                    </form>
+                </section>
+                <section class="modal-beneficios-section">
+                    <div class="modal-beneficios-header">
+                        <div>
+                            <h4>Cartões de benefício</h4>
+                            <p class="modal-renda-description">Cadastre vales alimentação, refeição, transporte e outros para utilizá-los como forma de pagamento.</p>
+                        </div>
+                        <span class="modal-beneficios-total" id="beneficios-total-resumo">Total em benefícios: R$ 0,00</span>
+                    </div>
+                    <form id="form-beneficio" class="form-beneficio">
+                        <div class="form-beneficio-grid">
+                            <div class="form-beneficio-field">
+                                <label for="beneficio-nome">Nome do cartão</label>
+                                <input type="text" id="beneficio-nome" name="beneficio-nome" placeholder="Ex: Alelo Alimentação" maxlength="40" required>
+                            </div>
+                            <div class="form-beneficio-field">
+                                <label for="beneficio-tipo">Tipo de benefício</label>
+                                <select id="beneficio-tipo" name="beneficio-tipo" class="modern-select">
+                                    <option value="alimentacao">Vale Alimentação</option>
+                                    <option value="refeicao">Vale Refeição</option>
+                                    <option value="transporte">Vale Transporte</option>
+                                    <option value="combustivel">Vale Combustível</option>
+                                    <option value="saude">Benefício Saúde</option>
+                                    <option value="cultura">Vale Cultura</option>
+                                    <option value="outro">Outro</option>
+                                </select>
+                            </div>
+                            <div class="form-beneficio-field">
+                                <label for="beneficio-saldo">Saldo atual (R$)</label>
+                                <input type="number" id="beneficio-saldo" name="beneficio-saldo" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="modal-beneficio-adicionar">Adicionar cartão</button>
+                    </form>
+                    <ul id="lista-beneficios" class="lista-beneficios"></ul>
+                </section>
+            </div>
+            <div class="modal-editar-renda-actions modal-renda-footer">
+                <button type="button" class="modal-editar-renda-cancelar" id="modal-editar-renda-cancelar">Fechar</button>
+            </div>
         </div>
     </div>
     <div id="modal-confirmar-exclusao" class="modal-editar-renda" style="display:none;">
