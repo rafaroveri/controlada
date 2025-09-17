@@ -1,4 +1,4 @@
-(function(){
+(function(global){
     const StorageUtil = {
         getNumber(key){
             const raw = localStorage.getItem(key);
@@ -32,5 +32,8 @@
             localStorage.removeItem(key);
         }
     };
-    window.storageUtil = StorageUtil;
-})();
+    if(typeof module !== 'undefined' && module.exports){
+        module.exports = StorageUtil;
+    }
+    global.storageUtil = StorageUtil;
+})(typeof window !== 'undefined' ? window : globalThis);

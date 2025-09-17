@@ -1,4 +1,4 @@
-(function(){
+(function(global){
     const CategoriaService = {
         getPersonalizadas(){
             return storageUtil.getJSON('categorias_usuario', []);
@@ -28,5 +28,8 @@
             return [...padrao, ...personalizadas].filter(c => !removidas.includes(c.id));
         }
     };
-    window.categoriasService = CategoriaService;
-})();
+    if(typeof module !== 'undefined' && module.exports){
+        module.exports = CategoriaService;
+    }
+    global.categoriasService = CategoriaService;
+})(typeof window !== 'undefined' ? window : globalThis);
