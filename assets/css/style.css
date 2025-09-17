@@ -34,11 +34,12 @@ body {
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
+    padding: 2rem 1.5rem;
     background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(3px);
     z-index: 2000;
     overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .modal-editar-renda-content {
@@ -48,11 +49,14 @@ body {
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
     width: 100%;
     max-width: 520px;
+    max-height: min(90vh, 760px);
     padding: 2.5rem 2rem;
     position: relative;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 body[data-theme="dark"] .modal-editar-renda-content {
@@ -1632,6 +1636,11 @@ body[data-theme="dark"] .beneficio-empty {
 
 /* Dispositivos móveis em paisagem */
 @media (max-width: 768px) {
+    .modal-editar-renda {
+        align-items: flex-start;
+        padding: 1.5rem 1rem;
+    }
+
     .main-header {
         padding: 0.3rem 0;
     }
@@ -1754,9 +1763,11 @@ body[data-theme="dark"] .beneficio-empty {
     }
     
     .modal-editar-renda-content {
-        min-width: 300px;
-        margin: 1rem;
+        width: 100%;
+        min-width: auto;
+        margin: 1rem auto;
         padding: 2rem 1.5rem;
+        max-height: calc(100vh - 2rem);
     }
     
     .modal-editar-renda-content h3 {
@@ -1771,6 +1782,16 @@ body[data-theme="dark"] .beneficio-empty {
 
 /* Dispositivos móveis pequenos */
 @media (max-width: 480px) {
+    .modal-editar-renda {
+        padding: 1.25rem 0.75rem;
+    }
+
+    .modal-editar-renda-content {
+        padding: 1.8rem 1.3rem;
+        border-radius: 20px;
+        max-height: calc(100vh - 1.5rem);
+    }
+
     .page-layout {
         padding-top: 160px;
         padding-left: 0.5rem;
