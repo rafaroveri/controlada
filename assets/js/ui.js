@@ -22,6 +22,37 @@
         'Outro': '💰'
     };
     const defaultPaymentIcon = (constants && constants.DEFAULT_PAYMENT_ICON) || '💰';
+    const benefitTypeIcons = {
+        alimentacao: '🍽️',
+        refeicao: '🍔',
+        transporte: '🚌',
+        combustivel: '⛽',
+        saude: '🩺',
+        cultura: '🎭',
+        outro: '🎁'
+    };
+    const benefitTypeLabels = {
+        alimentacao: 'Vale Alimentação',
+        refeicao: 'Vale Refeição',
+        transporte: 'Vale Transporte',
+        combustivel: 'Vale Combustível',
+        saude: 'Benefício Saúde',
+        cultura: 'Vale Cultura',
+        outro: 'Outro benefício'
+    };
+    function getBenefitIcon(tipo){
+        return benefitTypeIcons[tipo] || benefitTypeIcons.outro;
+    }
+    function getBenefitLabel(tipo){
+        return benefitTypeLabels[tipo] || benefitTypeLabels.outro;
+    }
+    const basePaymentMethods = [
+        { value: 'Dinheiro', label: '💵 Dinheiro', icon: '💵' },
+        { value: 'PIX', label: '📱 PIX', icon: '📱' },
+        { value: 'Débito', label: '💳 Débito', icon: '💳' },
+        { value: 'Crédito', label: '💳 Crédito', icon: '💳' }
+    ];
+    const outroPaymentMethod = { value: 'Outro', label: '✨ Outro', icon: '✨' };
     const formatCurrency = dataService ? dataService.formatCurrency : (valor => {
         const numero = typeof valor === 'number' ? valor : parseFloat(valor || 0);
         return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -44,6 +75,7 @@
     
     // Verificar se elementos existem antes de tentar acessá-los
     const rendaValor = document.getElementById('sidebar-renda-valor');
+    const sidebarBeneficiosValor = document.getElementById('sidebar-beneficios-valor');
     const sobraValor = document.getElementById('sidebar-sobra-valor');
     const editarRendaBtn = document.getElementById('editar-renda-btn');
     const menuToggleBtn = document.getElementById('menu-toggle');
@@ -55,11 +87,281 @@
     const modalCancelar = document.getElementById('modal-editar-renda-cancelar');
     const formModalRenda = document.getElementById('form-modal-renda');
     const inputModalRenda = document.getElementById('input-modal-renda');
+    const beneficiosTotalResumo = document.getElementById('beneficios-total-resumo');
+    const formBeneficio = document.getElementById('form-beneficio');
+    const inputBeneficioNome = document.getElementById('beneficio-nome');
+    const selectBeneficioTipo = document.getElementById('beneficio-tipo');
+    const inputBeneficioSaldo = document.getElementById('beneficio-saldo');
+    const listaBeneficios = document.getElementById('lista-beneficios');
+    const selectMetodo = document.getElementById('metodo-pagamento');
+    const searchHistorico = document.getElementById('search-historico');
+    const filterCategoriaHistorico = document.getElementById('filter-categoria-historico');
+    const filterMetodoHistorico = document.getElementById('filter-metodo-historico');
 
     function resolverCategoriaId(categoriaValor, categoriaIdExistente){
         if(categoriaIdExistente) return categoriaIdExistente;
         const categoriaEncontrada = dataService.getTodasCategorias().find(cat => cat.valor === categoriaValor);
         return categoriaEncontrada ? categoriaEncontrada.id : null;
+    }
+
+    function obterRendaDetalhada(){
+        if(dataService && typeof dataService.getRendaDetalhada === 'function'){
+            return dataService.getRendaDetalhada();
+        }
+        const rendaAtual = dataService && typeof dataService.getRenda === 'function' ? dataService.getRenda() : 0;
+        return {
+            base: rendaAtual,
+            beneficios: [],
+            totalBeneficios: 0,
+            total: rendaAtual
+        };
+    }
+
+    function getBenefitCards(){
+        if(dataService && typeof dataService.getBenefitCards === 'function'){
+            return dataService.getBenefitCards();
+        }
+        return [];
+    }
+
+    function calcularTotalBeneficios(lista){
+        return (lista || []).reduce((total, item) => {
+            const saldo = parseFloat(item && item.saldo !== undefined ? item.saldo : 0);
+            return total + (Number.isNaN(saldo) ? 0 : saldo);
+        }, 0);
+    }
+
+    function atualizarResumoBeneficios(detalhes){
+        const info = detalhes || obterRendaDetalhada();
+        const totalBeneficios = info.totalBeneficios !== undefined
+            ? info.totalBeneficios
+            : calcularTotalBeneficios(info.beneficios);
+        if(sidebarBeneficiosValor){
+            sidebarBeneficiosValor.textContent = formatCurrency(totalBeneficios);
+        }
+        if(beneficiosTotalResumo){
+            beneficiosTotalResumo.textContent = `Total em benefícios: ${formatCurrency(totalBeneficios)}`;
+        }
+        return totalBeneficios;
+    }
+
+    function renderBenefitCardsList(detalhes){
+        if(!listaBeneficios) return;
+        const info = detalhes || obterRendaDetalhada();
+        const beneficios = Array.isArray(info.beneficios) ? info.beneficios : [];
+        listaBeneficios.innerHTML = '';
+        if(beneficios.length === 0){
+            const empty = document.createElement('li');
+            empty.className = 'beneficio-empty';
+            empty.textContent = 'Nenhum cartão de benefício cadastrado ainda.';
+            listaBeneficios.appendChild(empty);
+            atualizarResumoBeneficios(info);
+            return;
+        }
+
+        beneficios.forEach(beneficio => {
+            const icon = getBenefitIcon(beneficio.tipo);
+            paymentIcons[beneficio.nome] = icon;
+            const li = document.createElement('li');
+            li.className = 'beneficio-item';
+            li.dataset.id = beneficio.id;
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'beneficio-info';
+
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'beneficio-icone';
+            iconSpan.textContent = icon;
+
+            const textoDiv = document.createElement('div');
+            textoDiv.className = 'beneficio-texto';
+
+            const nomeStrong = document.createElement('strong');
+            nomeStrong.textContent = beneficio.nome;
+
+            const tipoSmall = document.createElement('small');
+            tipoSmall.textContent = getBenefitLabel(beneficio.tipo);
+
+            textoDiv.appendChild(nomeStrong);
+            textoDiv.appendChild(tipoSmall);
+
+            infoDiv.appendChild(iconSpan);
+            infoDiv.appendChild(textoDiv);
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'beneficio-actions';
+
+            const saldoSpan = document.createElement('span');
+            saldoSpan.className = 'beneficio-saldo';
+            const saldoNumerico = parseFloat(beneficio.saldo || 0);
+            saldoSpan.textContent = formatCurrency(Number.isNaN(saldoNumerico) ? 0 : saldoNumerico);
+
+            const editarBtn = document.createElement('button');
+            editarBtn.type = 'button';
+            editarBtn.className = 'beneficio-btn editar';
+            editarBtn.dataset.acao = 'editar';
+            editarBtn.dataset.id = beneficio.id;
+            editarBtn.title = `Atualizar saldo de ${beneficio.nome}`;
+            editarBtn.textContent = '✏️';
+
+            const removerBtn = document.createElement('button');
+            removerBtn.type = 'button';
+            removerBtn.className = 'beneficio-btn remover';
+            removerBtn.dataset.acao = 'remover';
+            removerBtn.dataset.id = beneficio.id;
+            removerBtn.title = `Remover ${beneficio.nome}`;
+            removerBtn.textContent = '🗑️';
+
+            actionsDiv.appendChild(saldoSpan);
+            actionsDiv.appendChild(editarBtn);
+            actionsDiv.appendChild(removerBtn);
+
+            li.appendChild(infoDiv);
+            li.appendChild(actionsDiv);
+            listaBeneficios.appendChild(li);
+        });
+
+        atualizarResumoBeneficios(info);
+    }
+
+    function atualizarSeletoresMetodos(){
+        const beneficios = getBenefitCards();
+        beneficios.forEach(beneficio => {
+            paymentIcons[beneficio.nome] = getBenefitIcon(beneficio.tipo);
+        });
+
+        if(selectMetodo){
+            const valorAtual = selectMetodo.value;
+            const divOutro = document.getElementById('div-outro-metodo');
+            selectMetodo.innerHTML = '';
+
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'Selecione o método';
+            selectMetodo.appendChild(defaultOption);
+
+            basePaymentMethods.forEach(methodo => {
+                const option = document.createElement('option');
+                option.value = methodo.value;
+                option.textContent = methodo.label;
+                selectMetodo.appendChild(option);
+            });
+
+            beneficios.forEach(beneficio => {
+                const option = document.createElement('option');
+                option.value = beneficio.nome;
+                option.textContent = `${getBenefitIcon(beneficio.tipo)} ${beneficio.nome}`;
+                selectMetodo.appendChild(option);
+            });
+
+            const outroOption = document.createElement('option');
+            outroOption.value = outroPaymentMethod.value;
+            outroOption.textContent = `${outroPaymentMethod.icon} Outro`;
+            selectMetodo.appendChild(outroOption);
+
+            const valoresDisponiveis = Array.from(selectMetodo.options).map(opt => opt.value);
+            if(valorAtual && valoresDisponiveis.includes(valorAtual)){
+                selectMetodo.value = valorAtual;
+            } else {
+                selectMetodo.value = '';
+            }
+
+            if(divOutro){
+                divOutro.style.display = selectMetodo.value === 'Outro' ? 'block' : 'none';
+            }
+        }
+
+        if(filterMetodoHistorico){
+            const valorFiltroAtual = filterMetodoHistorico.value;
+            filterMetodoHistorico.innerHTML = '';
+            const todosOption = document.createElement('option');
+            todosOption.value = '';
+            todosOption.textContent = '💳 Todos os métodos';
+            filterMetodoHistorico.appendChild(todosOption);
+
+            basePaymentMethods.forEach(methodo => {
+                const option = document.createElement('option');
+                option.value = methodo.value;
+                option.textContent = methodo.label;
+                filterMetodoHistorico.appendChild(option);
+            });
+
+            beneficios.forEach(beneficio => {
+                const option = document.createElement('option');
+                option.value = beneficio.nome;
+                option.textContent = `${getBenefitIcon(beneficio.tipo)} ${beneficio.nome}`;
+                filterMetodoHistorico.appendChild(option);
+            });
+
+            const outroFiltroOption = document.createElement('option');
+            outroFiltroOption.value = outroPaymentMethod.value;
+            outroFiltroOption.textContent = `${outroPaymentMethod.icon} Outro`;
+            filterMetodoHistorico.appendChild(outroFiltroOption);
+
+            const mesAnoAtual = selectMesAno && selectMesAno.value ? selectMesAno.value : dataService.getCurrentCycleKeyStr();
+            const gastosMes = dataService.getGastosDoMesAno(mesAnoAtual) || [];
+            const valoresExistentes = new Set([...basePaymentMethods.map(m => m.value), ...beneficios.map(b => b.nome), outroPaymentMethod.value]);
+            gastosMes.forEach(gasto => {
+                const metodo = gasto.metodoPagamento;
+                if(!metodo || valoresExistentes.has(metodo)) return;
+                valoresExistentes.add(metodo);
+                const option = document.createElement('option');
+                const icon = paymentIcons[metodo] || defaultPaymentIcon;
+                option.value = metodo;
+                option.textContent = `${icon} ${metodo}`;
+                filterMetodoHistorico.appendChild(option);
+            });
+
+            if(Array.from(filterMetodoHistorico.options).some(opt => opt.value === valorFiltroAtual)){
+                filterMetodoHistorico.value = valorFiltroAtual;
+            }
+        }
+
+        if(typeof aplicarFiltros === 'function'){
+            aplicarFiltros();
+        }
+    }
+
+    function removerBeneficio(id){
+        const beneficios = getBenefitCards();
+        const beneficio = beneficios.find(item => item.id === id);
+        if(!beneficio) return;
+        const confirmar = window.confirm(`Deseja remover o cartão de benefício "${beneficio.nome}"?`);
+        if(!confirmar) return;
+        if(typeof dataService.removeBenefitCard === 'function'){
+            dataService.removeBenefitCard(id);
+        } else if(typeof dataService.setBenefitCards === 'function'){
+            const atualizados = beneficios.filter(item => item.id !== id);
+            dataService.setBenefitCards(atualizados);
+        }
+        renderBenefitCardsList();
+        atualizarSidebar();
+        atualizarSeletoresMetodos();
+    }
+
+    function editarBeneficio(id){
+        const beneficios = getBenefitCards();
+        const beneficio = beneficios.find(item => item.id === id);
+        if(!beneficio) return;
+        const saldoAtual = parseFloat(beneficio.saldo || 0);
+        const valorPadrao = Number.isNaN(saldoAtual) ? '' : saldoAtual.toFixed(2).replace('.', ',');
+        const entrada = window.prompt(`Informe o novo saldo para ${beneficio.nome}`, valorPadrao);
+        if(entrada === null) return;
+        const normalizado = entrada.replace(',', '.');
+        const novoSaldo = parseFloat(normalizado);
+        if(Number.isNaN(novoSaldo) || novoSaldo < 0){
+            alert('Saldo inválido!');
+            return;
+        }
+        if(typeof dataService.updateBenefitCard === 'function'){
+            dataService.updateBenefitCard(id, { saldo: novoSaldo });
+        } else if(typeof dataService.setBenefitCards === 'function'){
+            const atualizados = beneficios.map(item => item.id === id ? Object.assign({}, item, { saldo: novoSaldo }) : item);
+            dataService.setBenefitCards(atualizados);
+        }
+        renderBenefitCardsList();
+        atualizarSidebar();
+        atualizarSeletoresMetodos();
     }
 
     function verificarGastosRecorrentes() {
@@ -98,34 +400,36 @@
     }
 
     function atualizarSidebar() {
-        const renda = dataService.getRenda();
+        const detalhes = obterRendaDetalhada();
+        const rendaTotal = detalhes.total;
         const totalGastos = dataService.getTotalGastosMesAtual();
-        
-        // Verificação segura antes de acessar elementos
+        atualizarResumoBeneficios(detalhes);
+
         if (rendaValor) {
-            rendaValor.textContent = formatCurrency(renda);
+            rendaValor.textContent = formatCurrency(rendaTotal);
         }
-        
+
         if (sobraValor) {
-            sobraValor.textContent = formatCurrency(renda - totalGastos);
+            sobraValor.textContent = formatCurrency(rendaTotal - totalGastos);
         }
-        
-        // Atualizar estatísticas do hero
+
         if (typeof atualizarEstatisticasHero === 'function') {
             atualizarEstatisticasHero();
         }
-        
-        // Sempre atualizar dashboard quando dados mudam
+
         if (typeof atualizarDashboard === 'function') {
             atualizarDashboard();
         }
     }
     function abrirModalRenda() {
-        if (inputModalRenda && modal) {
-            inputModalRenda.value = dataService.getRenda() > 0 ? dataService.getRenda() : '';
-            modal.style.display = 'flex';
-            setTimeout(() => { inputModalRenda.focus(); }, 100);
+        if (!modal) return;
+        const detalhes = obterRendaDetalhada();
+        if (inputModalRenda) {
+            inputModalRenda.value = detalhes.base > 0 ? detalhes.base : '';
         }
+        renderBenefitCardsList(detalhes);
+        modal.style.display = 'flex';
+        setTimeout(() => { if (inputModalRenda) { inputModalRenda.focus(); } }, 100);
     }
     
     function fecharModalRenda() {
@@ -156,17 +460,77 @@
     if (formModalRenda) {
         formModalRenda.addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             if (inputModalRenda) {
                 let nova = inputModalRenda.value.replace(',', '.');
                 const valor = parseFloat(nova);
                 if (!isNaN(valor) && valor >= 0) {
-                    dataService.setRenda(valor);
+                    if (typeof dataService.setRendaBase === 'function') {
+                        dataService.setRendaBase(valor);
+                    } else if (typeof dataService.setRenda === 'function') {
+                        dataService.setRenda(valor);
+                    }
                     atualizarSidebar();
-                    fecharModalRenda();
+                    renderBenefitCardsList();
                 } else {
                     alert('Valor inválido!');
                 }
+            }
+        });
+    }
+
+    if (formBeneficio) {
+        formBeneficio.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nome = inputBeneficioNome ? inputBeneficioNome.value.trim() : '';
+            const tipo = selectBeneficioTipo ? selectBeneficioTipo.value : 'outro';
+            const saldoInput = inputBeneficioSaldo ? String(inputBeneficioSaldo.value).replace(',', '.') : '0';
+            const saldo = parseFloat(saldoInput);
+            if (!nome) {
+                alert('Informe o nome do cartão de benefício.');
+                return;
+            }
+            if (Number.isNaN(saldo) || saldo < 0) {
+                alert('Informe um saldo válido para o benefício.');
+                return;
+            }
+            const existentes = getBenefitCards();
+            if (existentes.some(b => (b.nome || '').toLowerCase() === nome.toLowerCase())) {
+                alert('Já existe um cartão de benefício com esse nome.');
+                return;
+            }
+            const novo = {
+                id: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : `benef-${Date.now()}`,
+                nome,
+                tipo,
+                saldo: Math.round(saldo * 100) / 100
+            };
+            if (typeof dataService.addBenefitCard === 'function') {
+                dataService.addBenefitCard(novo);
+            } else if (typeof dataService.setBenefitCards === 'function') {
+                const listaAtualizada = existentes.concat([novo]);
+                dataService.setBenefitCards(listaAtualizada);
+            }
+            renderBenefitCardsList();
+            atualizarSidebar();
+            atualizarSeletoresMetodos();
+            formBeneficio.reset();
+            if (selectBeneficioTipo) {
+                selectBeneficioTipo.value = 'alimentacao';
+            }
+        });
+    }
+
+    if (listaBeneficios) {
+        listaBeneficios.addEventListener('click', function(e) {
+            const botao = e.target.closest('button');
+            if (!botao || !botao.dataset || !botao.dataset.acao) return;
+            const id = botao.dataset.id;
+            if (!id) return;
+            if (botao.dataset.acao === 'remover') {
+                removerBeneficio(id);
+            } else if (botao.dataset.acao === 'editar') {
+                editarBeneficio(id);
             }
         });
     }
@@ -197,15 +561,21 @@
     // Função para atualizar sidebar e histórico conforme mês selecionado
     function atualizarTudoPorMes() {
         const mesAno = selectMesAno.value;
-        const renda = dataService.getRenda();
+        const detalhes = obterRendaDetalhada();
         const totalGastos = dataService.getTotalGastosMes(mesAno);
-        rendaValor.textContent = formatCurrency(renda);
-        sobraValor.textContent = formatCurrency(renda - totalGastos);
+        if (rendaValor) {
+            rendaValor.textContent = formatCurrency(detalhes.total);
+        }
+        if (sobraValor) {
+            sobraValor.textContent = formatCurrency(detalhes.total - totalGastos);
+        }
+        atualizarResumoBeneficios(detalhes);
         atualizarHistoricoGastos(mesAno);
-        
+        atualizarSeletoresMetodos();
+
         // Atualizar estatísticas do hero
         atualizarEstatisticasHero();
-        
+
         // Sempre atualizar dashboard quando dados mudam
         if (typeof atualizarDashboard === 'function') {
             atualizarDashboard();
@@ -662,7 +1032,6 @@
     };
 
     // Mostrar/esconder campo de método personalizado
-    const selectMetodo = document.getElementById('metodo-pagamento');
     if (selectMetodo) {
         selectMetodo.addEventListener('change', function() {
             const divOutro = document.getElementById('div-outro-metodo');
@@ -871,9 +1240,6 @@
     // === FUNCIONALIDADE DOS FILTROS DO HISTÓRICO ===
     
     // Elementos dos filtros
-    const searchHistorico = document.getElementById('search-historico');
-    const filterCategoriaHistorico = document.getElementById('filter-categoria-historico');
-    const filterMetodoHistorico = document.getElementById('filter-metodo-historico');
     const viewToggleBtns = document.querySelectorAll('.toggle-btn');
     const tableView = document.getElementById('table-view');
     const cardsView = document.getElementById('cards-view');
@@ -885,31 +1251,31 @@
     
     // Função para aplicar todos os filtros
     function aplicarFiltros() {
-        const mesAno = selectMesAno.value;
+        const mesAno = selectMesAno ? selectMesAno.value : dataService.getCurrentCycleKeyStr();
         gastosOriginais = dataService.getGastosDoMesAno(mesAno);
-        
+
         let gastosFiltrados = [...gastosOriginais];
-        
+
         // Filtro de busca por descrição
-        const textoBusca = searchHistorico.value.toLowerCase().trim();
+        const textoBusca = (searchHistorico ? searchHistorico.value : '').toLowerCase().trim();
         if (textoBusca) {
-            gastosFiltrados = gastosFiltrados.filter(gasto => 
+            gastosFiltrados = gastosFiltrados.filter(gasto =>
                 gasto.descricao.toLowerCase().includes(textoBusca)
             );
         }
-        
+
         // Filtro por categoria
-        const categoriaFiltro = filterCategoriaHistorico.value;
+        const categoriaFiltro = filterCategoriaHistorico ? filterCategoriaHistorico.value : '';
         if (categoriaFiltro) {
-            gastosFiltrados = gastosFiltrados.filter(gasto => 
+            gastosFiltrados = gastosFiltrados.filter(gasto =>
                 gasto.categoria === categoriaFiltro
             );
         }
-        
+
         // Filtro por método de pagamento
-        const metodoFiltro = filterMetodoHistorico.value;
+        const metodoFiltro = filterMetodoHistorico ? filterMetodoHistorico.value : '';
         if (metodoFiltro) {
-            gastosFiltrados = gastosFiltrados.filter(gasto => 
+            gastosFiltrados = gastosFiltrados.filter(gasto =>
                 gasto.metodoPagamento === metodoFiltro
             );
         }

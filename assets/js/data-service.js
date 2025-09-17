@@ -31,6 +31,7 @@
     const metasKey = 'metas_usuario';
     const recorrentesKey = 'gastos_recorrentes';
     const configKey = 'config_inicio_mes';
+    const benefitCardsKey = 'beneficios_usuario';
 
     const categoriaAPI = categoriasService || {
         getPersonalizadas: () => [],
@@ -169,12 +170,76 @@
         storageUtil.setJSON(gastosKey, lista);
     }
 
-    function getRenda(){
+    function getBenefitCards(){
+        return storageUtil.getJSON(benefitCardsKey, []);
+    }
+
+    function setBenefitCards(lista){
+        storageUtil.setJSON(benefitCardsKey, lista);
+    }
+
+    function getTotalBeneficios(){
+        return getBenefitCards().reduce((total, card) => {
+            const saldo = parseFloat(card && card.saldo !== undefined ? card.saldo : 0);
+            return total + (Number.isNaN(saldo) ? 0 : saldo);
+        }, 0);
+    }
+
+    function getRendaBase(){
         return storageUtil.getNumber(rendaKey);
     }
 
-    function setRenda(valor){
+    function getRenda(){
+        return getRendaBase() + getTotalBeneficios();
+    }
+
+    function setRendaBase(valor){
         storageUtil.setNumber(rendaKey, valor);
+    }
+
+    function setRenda(valor){
+        setRendaBase(valor);
+    }
+
+    function getRendaDetalhada(){
+        const beneficios = getBenefitCards();
+        const totalBeneficios = getTotalBeneficios();
+        const base = getRendaBase();
+        return {
+            base,
+            beneficios,
+            totalBeneficios,
+            total: base + totalBeneficios
+        };
+    }
+
+    function addBenefitCard(card){
+        const lista = getBenefitCards();
+        lista.push(card);
+        setBenefitCards(lista);
+    }
+
+    function updateBenefitCard(id, updates){
+        const lista = getBenefitCards();
+        const index = lista.findIndex(item => item.id === id);
+        if(index === -1){
+            return null;
+        }
+        const atual = lista[index];
+        const atualizado = Object.assign({}, atual, updates);
+        if(atualizado.saldo !== undefined){
+            const parsed = parseFloat(atualizado.saldo);
+            atualizado.saldo = Number.isNaN(parsed) ? 0 : parsed;
+        }
+        lista[index] = atualizado;
+        setBenefitCards(lista);
+        return atualizado;
+    }
+
+    function removeBenefitCard(id){
+        const lista = getBenefitCards();
+        const filtrado = lista.filter(item => item.id !== id);
+        setBenefitCards(filtrado);
     }
 
     function getMetas(){
@@ -412,8 +477,17 @@
         getTodasCategorias,
         getGastos,
         setGastos,
+        getBenefitCards,
+        setBenefitCards,
+        getTotalBeneficios,
+        getRendaBase,
         getRenda,
+        setRendaBase,
         setRenda,
+        getRendaDetalhada,
+        addBenefitCard,
+        updateBenefitCard,
+        removeBenefitCard,
         getMetas,
         setMetas,
         getGastosRecorrentes,
