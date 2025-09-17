@@ -98,6 +98,11 @@
     const filterCategoriaHistorico = document.getElementById('filter-categoria-historico');
     const filterMetodoHistorico = document.getElementById('filter-metodo-historico');
 
+    // Controle de filtros do histórico (precisa existir antes dos handlers que os utilizam)
+    let currentView = 'table';
+    let gastosOriginais = [];
+    let gastosFiltrados = [];
+
     function resolverCategoriaId(categoriaValor, categoriaIdExistente){
         if(categoriaIdExistente) return categoriaIdExistente;
         const categoriaEncontrada = dataService.getTodasCategorias().find(cat => cat.valor === categoriaValor);
@@ -1300,10 +1305,6 @@
     const cardsView = document.getElementById('cards-view');
     
     // Variáveis de controle
-    let currentView = 'table';
-    let gastosOriginais = [];
-    let gastosFiltrados = [];
-    
     // Função para aplicar todos os filtros
     function aplicarFiltros() {
         const mesAno = getMesAnoSelecionado();
