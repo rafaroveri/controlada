@@ -58,18 +58,33 @@
         return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     });
     function init(){
+        const firebaseService = window.firebaseService;
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-    // MODO DESENVOLVIMENTO - Simula autenticação se estiver testando localmente
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocalhost && !localStorage.getItem('autenticado')) {
-        localStorage.setItem('autenticado', 'true');
+        if(firebaseService && firebaseService.isFirebaseAvailable && typeof firebaseService.ensureAuthenticated === 'function'){
+            firebaseService.ensureAuthenticated()
+                .then(() => {
+                    bootInterface(firebaseService);
+                })
+                .catch(() => {
+                    window.location.href = 'login.html';
+                });
+            return;
+        }
+
+        if(isLocalhost && !localStorage.getItem('autenticado')){
+            localStorage.setItem('autenticado', 'true');
+        }
+
+        if(!localStorage.getItem('autenticado')){
+            window.location.href = 'login.html';
+            return;
+        }
+
+        bootInterface(firebaseService);
     }
-    
-    // Verifica autenticação - se não está autenticado, redireciona para login
-    if (!localStorage.getItem('autenticado')) {
-        window.location.href = 'login.html';
-        return;
-    }
+
+    function bootInterface(firebaseService){
 
     // --- Renda e sobra ---
     
@@ -1379,8 +1394,16 @@
     if (logoutLink) {
         logoutLink.addEventListener('click', function(e) {
             e.preventDefault();
-            localStorage.removeItem('autenticado');
-            window.location.href = 'login.html';
+            if (firebaseService && typeof firebaseService.logout === 'function') {
+                firebaseService.logout().catch(error => {
+                    console.error('Erro ao encerrar sessão no Firebase', error);
+                }).finally(() => {
+                    window.location.href = 'login.html';
+                });
+            } else {
+                localStorage.removeItem('autenticado');
+                window.location.href = 'login.html';
+            }
         });
     }
 
