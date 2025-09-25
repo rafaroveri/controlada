@@ -80,6 +80,7 @@
     const editarRendaBtn = document.getElementById('editar-renda-btn');
     const menuToggleBtn = document.getElementById('menu-toggle');
     const themeToggleBtn = document.getElementById('theme-toggle');
+    const recorrentesAlertBtn = document.getElementById('recorrentes-alert');
 
     // Modal elementos - verificação segura
     const modal = document.getElementById('modal-editar-renda');
@@ -87,6 +88,10 @@
     const modalCancelar = document.getElementById('modal-editar-renda-cancelar');
     const formModalRenda = document.getElementById('form-modal-renda');
     const inputModalRenda = document.getElementById('input-modal-renda');
+    const modalRecorrentes = document.getElementById('modal-gastos-recorrentes');
+    const modalRecorrentesClose = document.getElementById('modal-recorrentes-close');
+    const modalRecorrentesFechar = document.getElementById('modal-recorrentes-fechar');
+    const listaRecorrentesPendentes = document.getElementById('lista-recorrentes-pendentes');
     const beneficiosTotalResumo = document.getElementById('beneficios-total-resumo');
     const formBeneficio = document.getElementById('form-beneficio');
     const inputBeneficioNome = document.getElementById('beneficio-nome');
@@ -102,6 +107,7 @@
     let currentView = 'table';
     let gastosOriginais = [];
     let gastosFiltrados = [];
+    let recorrentesPendentes = [];
 
     function resolverCategoriaId(categoriaValor, categoriaIdExistente){
         if(categoriaIdExistente) return categoriaIdExistente;
@@ -369,38 +375,228 @@
         atualizarSeletoresMetodos();
     }
 
+    function traduzirFrequencia(freq) {
+        const mapa = {
+            semanal: 'Semanal',
+            mensal: 'Mensal',
+            anual: 'Anual'
+        };
+        return mapa[freq] || 'Mensal';
+    }
+
+    function formatarDataCurta(iso) {
+        if(!iso || typeof iso !== 'string'){
+            return '-';
+        }
+        const partes = iso.split('-');
+        if(partes.length !== 3){
+            return iso;
+        }
+        const [ano, mes, dia] = partes;
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    function calcularProximaDataRecorrente(dataAtual, frequencia){
+        let referencia = dataAtual ? new Date(dataAtual) : new Date();
+        if(Number.isNaN(referencia.getTime())){
+            referencia = new Date();
+        }
+        referencia.setHours(0, 0, 0, 0);
+        switch(frequencia){
+            case 'semanal':
+                referencia.setDate(referencia.getDate() + 7);
+                break;
+            case 'anual':
+                referencia.setFullYear(referencia.getFullYear() + 1);
+                break;
+            case 'mensal':
+            default:
+                referencia.setMonth(referencia.getMonth() + 1);
+                break;
+        }
+        return referencia.toISOString().slice(0, 10);
+    }
+
+    function atualizarAlertaRecorrentes(){
+        if(!recorrentesAlertBtn){
+            return;
+        }
+        const quantidade = recorrentesPendentes.length;
+        const badge = recorrentesAlertBtn.querySelector('.recorrentes-alert-badge');
+        if(quantidade > 0){
+            recorrentesAlertBtn.style.display = 'inline-flex';
+            const plural = quantidade > 1 ? 's' : '';
+            const descricao = `${quantidade} gasto${plural} recorrente${plural} pendente${plural}`;
+            recorrentesAlertBtn.setAttribute('aria-label', `${descricao}. Clique para visualizar`);
+            recorrentesAlertBtn.setAttribute('title', descricao);
+            if(badge){
+                badge.textContent = quantidade > 99 ? '99+' : String(quantidade);
+            }
+        } else {
+            recorrentesAlertBtn.style.display = 'none';
+            recorrentesAlertBtn.removeAttribute('title');
+            recorrentesAlertBtn.setAttribute('aria-label', 'Gastos recorrentes pendentes');
+            if(badge){
+                badge.textContent = '';
+            }
+        }
+    }
+
+    function renderRecorrentesPendentes(){
+        if(!listaRecorrentesPendentes){
+            return;
+        }
+        listaRecorrentesPendentes.innerHTML = '';
+        if(!recorrentesPendentes.length){
+            const vazio = document.createElement('p');
+            vazio.className = 'modal-recorrentes-empty';
+            vazio.textContent = 'Nenhum gasto recorrente pendente 🎉';
+            listaRecorrentesPendentes.appendChild(vazio);
+            return;
+        }
+        const ordenados = recorrentesPendentes.slice().sort((a, b) => {
+            return String(a.proximaData || '').localeCompare(String(b.proximaData || ''));
+        });
+        ordenados.forEach(item => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'modal-recorrentes-item';
+            wrapper.dataset.id = item.id;
+
+            const info = document.createElement('div');
+            info.className = 'modal-recorrentes-info';
+
+            const titulo = document.createElement('strong');
+            titulo.textContent = item.descricao || 'Gasto recorrente';
+
+            const meta = document.createElement('div');
+            meta.className = 'modal-recorrentes-meta';
+
+            const valorSpan = document.createElement('span');
+            valorSpan.textContent = formatCurrency(item.valor || 0);
+
+            const categoriaSpan = document.createElement('span');
+            categoriaSpan.textContent = item.categoria ? `Categoria: ${item.categoria}` : 'Categoria não informada';
+
+            const metodoSpan = document.createElement('span');
+            metodoSpan.textContent = item.metodo ? `Pagamento: ${item.metodo}` : 'Pagamento: -';
+
+            const dataSpan = document.createElement('span');
+            dataSpan.textContent = `Agendado para: ${formatarDataCurta(item.proximaData)}`;
+
+            const freqSpan = document.createElement('span');
+            freqSpan.textContent = `Frequência: ${traduzirFrequencia(item.frequencia)}`;
+
+            meta.appendChild(valorSpan);
+            meta.appendChild(categoriaSpan);
+            meta.appendChild(metodoSpan);
+            meta.appendChild(dataSpan);
+            meta.appendChild(freqSpan);
+
+            info.appendChild(titulo);
+            info.appendChild(meta);
+
+            const acoes = document.createElement('div');
+            acoes.className = 'modal-recorrentes-acoes';
+
+            const lancarBtn = document.createElement('button');
+            lancarBtn.type = 'button';
+            lancarBtn.className = 'modal-editar-renda-salvar modal-recorrentes-lancar';
+            lancarBtn.dataset.id = item.id;
+            lancarBtn.textContent = 'Registrar agora';
+
+            acoes.appendChild(lancarBtn);
+
+            wrapper.appendChild(info);
+            wrapper.appendChild(acoes);
+            listaRecorrentesPendentes.appendChild(wrapper);
+        });
+    }
+
+    function abrirModalRecorrentes(){
+        if(!modalRecorrentes){
+            return;
+        }
+        verificarGastosRecorrentes();
+        renderRecorrentesPendentes();
+        modalRecorrentes.style.display = 'flex';
+        const primeiroBotao = modalRecorrentes.querySelector('.modal-recorrentes-lancar');
+        if(primeiroBotao){
+            setTimeout(() => primeiroBotao.focus(), 100);
+        }
+    }
+
+    function fecharModalRecorrentes(){
+        if(!modalRecorrentes){
+            return;
+        }
+        modalRecorrentes.style.display = 'none';
+    }
+
+    function lancarGastoRecorrente(recorrenteId){
+        if(!recorrenteId){
+            return;
+        }
+        const recorrentes = dataService.getGastosRecorrentes();
+        if(!Array.isArray(recorrentes) || !recorrentes.length){
+            return;
+        }
+        const indice = recorrentes.findIndex(item => String(item.id) === String(recorrenteId));
+        if(indice === -1){
+            return;
+        }
+        const registro = recorrentes[indice];
+        const hoje = new Date().toISOString().slice(0, 10);
+        const gastos = dataService.getGastos();
+        gastos.push({
+            descricao: registro.descricao,
+            valor: registro.valor,
+            data: hoje,
+            categoria: registro.categoria,
+            categoriaId: resolverCategoriaId(registro.categoria, registro.categoriaId),
+            metodoPagamento: registro.metodo
+        });
+        dataService.setGastos(gastos);
+
+        const proximaData = calcularProximaDataRecorrente(registro.proximaData, registro.frequencia);
+        recorrentes[indice] = Object.assign({}, registro, { proximaData });
+        dataService.setGastosRecorrentes(recorrentes);
+
+        recorrentesPendentes = recorrentesPendentes.filter(item => String(item.id) !== String(recorrenteId));
+        renderRecorrentesPendentes();
+        atualizarAlertaRecorrentes();
+        atualizarTudoPorMes();
+        atualizarSidebar();
+        if(chartsManager){
+            if(typeof chartsManager.renderCategoriaChart === 'function'){
+                chartsManager.renderCategoriaChart();
+            }
+            if(typeof chartsManager.renderMensalChart === 'function'){
+                chartsManager.renderMensalChart();
+            }
+            if(typeof chartsManager.refreshAll === 'function'){
+                chartsManager.refreshAll();
+            }
+        }
+        verificarGastosRecorrentes();
+    }
+
     function verificarGastosRecorrentes() {
         const recorrentes = dataService.getGastosRecorrentes();
-        if (!recorrentes.length) return;
-        const hoje = new Date().toISOString().slice(0,10);
-        const pendentes = recorrentes.filter(r => r.ativo && r.proximaData <= hoje);
-        const alertEl = document.getElementById('recorrentes-alert');
-        if (alertEl) alertEl.style.display = pendentes.length ? 'inline' : 'none';
-        let houveAtualizacao = false;
-        pendentes.forEach(r => {
-            const confirmar = window.confirm(`Lançar gasto recorrente "${r.descricao}"?`);
-            if (confirmar) {
-                const lista = dataService.getGastos();
-                lista.push({
-                    descricao: r.descricao,
-                    valor: r.valor,
-                    data: hoje,
-                    categoria: r.categoria,
-                    categoriaId: resolverCategoriaId(r.categoria, r.categoriaId),
-                    metodoPagamento: r.metodo
-                });
-                dataService.setGastos(lista);
-
-                let next = new Date(r.proximaData);
-                if (r.frequencia === 'mensal') next.setMonth(next.getMonth() + 1);
-                if (r.frequencia === 'semanal') next.setDate(next.getDate() + 7);
-                if (r.frequencia === 'anual') next.setFullYear(next.getFullYear() + 1);
-                r.proximaData = next.toISOString().slice(0,10);
-                houveAtualizacao = true;
+        if (!Array.isArray(recorrentes) || !recorrentes.length) {
+            recorrentesPendentes = [];
+            atualizarAlertaRecorrentes();
+            if(listaRecorrentesPendentes){
+                renderRecorrentesPendentes();
             }
-        });
-        if(houveAtualizacao){
-            dataService.setGastosRecorrentes(recorrentes);
+            return;
+        }
+        const hoje = new Date().toISOString().slice(0,10);
+        recorrentesPendentes = recorrentes
+            .filter(r => r && r.ativo && r.proximaData && r.proximaData <= hoje)
+            .map(r => Object.assign({}, r));
+        atualizarAlertaRecorrentes();
+        if(modalRecorrentes && modalRecorrentes.style.display === 'flex'){
+            renderRecorrentesPendentes();
         }
     }
 
@@ -461,7 +657,38 @@
             if (e.target === modal) fecharModalRenda();
         });
     }
-    
+
+    if (recorrentesAlertBtn) {
+        recorrentesAlertBtn.addEventListener('click', abrirModalRecorrentes);
+    }
+
+    if (modalRecorrentesClose) {
+        modalRecorrentesClose.addEventListener('click', fecharModalRecorrentes);
+    }
+
+    if (modalRecorrentesFechar) {
+        modalRecorrentesFechar.addEventListener('click', fecharModalRecorrentes);
+    }
+
+    if (modalRecorrentes) {
+        modalRecorrentes.addEventListener('click', function(e){
+            if (e.target === modalRecorrentes) fecharModalRecorrentes();
+        });
+    }
+
+    if (listaRecorrentesPendentes) {
+        listaRecorrentesPendentes.addEventListener('click', function(evento){
+            const botao = typeof evento.target.closest === 'function'
+                ? evento.target.closest('.modal-recorrentes-lancar')
+                : null;
+            if (!botao) return;
+            const { id } = botao.dataset;
+            if (id) {
+                lancarGastoRecorrente(id);
+            }
+        });
+    }
+
     if (formModalRenda) {
         formModalRenda.addEventListener('submit', function(e) {
             e.preventDefault();
