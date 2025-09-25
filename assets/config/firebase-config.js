@@ -11,5 +11,8 @@ const firebaseConfig = {
     appId: "SEU_APP_ID"
 };
 
-// Inicializa o Firebase
-firebase.initializeApp(firebaseConfig);
+if (typeof firebase !== 'undefined' && firebase?.apps) {
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+}
