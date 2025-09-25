@@ -504,7 +504,14 @@
             lancarBtn.dataset.id = item.id;
             lancarBtn.textContent = 'Registrar agora';
 
+            const cancelarBtn = document.createElement('button');
+            cancelarBtn.type = 'button';
+            cancelarBtn.className = 'modal-editar-renda-cancelar modal-recorrentes-cancelar';
+            cancelarBtn.dataset.id = item.id;
+            cancelarBtn.textContent = 'Cancelar recorrência';
+
             acoes.appendChild(lancarBtn);
+            acoes.appendChild(cancelarBtn);
 
             wrapper.appendChild(info);
             wrapper.appendChild(acoes);
@@ -557,7 +564,13 @@
         });
         dataService.setGastos(gastos);
 
-        const proximaData = calcularProximaDataRecorrente(registro.proximaData, registro.frequencia);
+        let proximaData = calcularProximaDataRecorrente(registro.proximaData, registro.frequencia);
+        const limiteIteracoes = 240;
+        let contador = 0;
+        while(proximaData && proximaData <= hoje && contador < limiteIteracoes){
+            proximaData = calcularProximaDataRecorrente(proximaData, registro.frequencia);
+            contador += 1;
+        }
         recorrentes[indice] = Object.assign({}, registro, { proximaData });
         dataService.setGastosRecorrentes(recorrentes);
 
@@ -577,6 +590,30 @@
                 chartsManager.refreshAll();
             }
         }
+        verificarGastosRecorrentes();
+    }
+
+    function cancelarGastoRecorrente(recorrenteId){
+        if(!recorrenteId){
+            return;
+        }
+        const recorrentes = dataService.getGastosRecorrentes();
+        if(!Array.isArray(recorrentes) || !recorrentes.length){
+            return;
+        }
+        const indice = recorrentes.findIndex(item => String(item.id) === String(recorrenteId));
+        if(indice === -1){
+            return;
+        }
+        const registro = recorrentes[indice];
+        recorrentes[indice] = Object.assign({}, registro, {
+            ativo: false,
+            canceladoEm: new Date().toISOString()
+        });
+        dataService.setGastosRecorrentes(recorrentes);
+        recorrentesPendentes = recorrentesPendentes.filter(item => String(item.id) !== String(recorrenteId));
+        renderRecorrentesPendentes();
+        atualizarAlertaRecorrentes();
         verificarGastosRecorrentes();
     }
 
@@ -678,12 +715,28 @@
 
     if (listaRecorrentesPendentes) {
         listaRecorrentesPendentes.addEventListener('click', function(evento){
-            const botao = typeof evento.target.closest === 'function'
-                ? evento.target.closest('.modal-recorrentes-lancar')
-                : null;
-            if (!botao) return;
-            const { id } = botao.dataset;
-            if (id) {
+            if(typeof evento.target.closest !== 'function'){
+                return;
+            }
+            const cancelarBtn = evento.target.closest('.modal-recorrentes-cancelar');
+            if(cancelarBtn){
+                const { id } = cancelarBtn.dataset;
+                if(id){
+                    const confirmar = (typeof window !== 'undefined' && typeof window.confirm === 'function')
+                        ? window.confirm('Cancelar essa recorrência impedirá lançamentos futuros. Deseja continuar?')
+                        : true;
+                    if(confirmar){
+                        cancelarGastoRecorrente(id);
+                    }
+                }
+                return;
+            }
+            const lancarBtn = evento.target.closest('.modal-recorrentes-lancar');
+            if(!lancarBtn){
+                return;
+            }
+            const { id } = lancarBtn.dataset;
+            if(id){
                 lancarGastoRecorrente(id);
             }
         });
