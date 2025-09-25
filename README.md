@@ -15,8 +15,8 @@ Controlada é uma aplicação web para gerenciamento de finanças pessoais que p
 ## 🛠️ Tecnologias Utilizadas
 
 - **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Autenticação**: Firebase Auth
-- **Banco de Dados**: Firebase Realtime Database
+- **Autenticação / API**: REST API com tokens JWT (Node.js/Express - planejado)
+- **Banco de Dados**: PostgreSQL 16 (planejado)
 - **Gráficos**: Chart.js
 - **Fontes**: Google Fonts (Rubik)
 
@@ -46,8 +46,10 @@ Controlada/
 │   ├── images/
 │   │   └── logo.png        # Logo da aplicação
 │   └── config/
-│       └── firebase-config.js  # Configuração do Firebase
+│       └── app-config.js       # Configuração da API / aplicação
 └── docs/
+    ├── database/
+    │   └── postgresql.md   # Plano de migração e modelo de dados
     ├── cores.txt           # Paleta de cores
     └── Melhorias.txt       # Lista de melhorias
 ```
@@ -64,10 +66,9 @@ git clone https://github.com/[seu-usuario]/controlada.git
 cd controlada
 ```
 
-3. Configure o Firebase:
-   - Crie um projeto no [Firebase Console](https://console.firebase.google.com/)
-   - Ative Authentication e Realtime Database
-   - Atualize as configurações em `assets/config/firebase-config.js`
+3. Configure a API:
+   - Defina o endpoint base da sua API REST no arquivo `assets/config/app-config.js`
+   - Consulte o documento `docs/database/postgresql.md` para detalhes sobre o backend sugerido
 
 4. Abra o `index.html` em um navegador ou use um servidor local:
 ```bash
@@ -119,10 +120,14 @@ A aplicação é totalmente responsiva e funciona perfeitamente em:
 
 ## 🔐 Segurança
 
-- Autenticação segura via Firebase
-- Dados criptografados
-- Sessões com tempo limite
-- Validação de entrada de dados
+- Autenticação baseada em tokens JWT (planejada)
+- Sessões validadas pelo backend Node.js
+- Validação de entrada de dados tanto no frontend quanto no backend
+- Estratégia de sincronização incremental com PostgreSQL
+
+## 🗃️ Planejamento de Banco de Dados
+
+Toda a estratégia de migração do Firebase para PostgreSQL, incluindo o modelo relacional, mapeamento de endpoints e estratégia de ETL, está documentada em `docs/database/postgresql.md`.
 
 ## 🤝 Contribuição
 

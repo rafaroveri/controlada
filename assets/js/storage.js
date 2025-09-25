@@ -1,22 +1,22 @@
 (function(global){
-    let firebaseService = null;
+    let remoteService = null;
     try {
-        firebaseService = global.firebaseService || (typeof require !== 'undefined' ? require('./firebase-service') : null);
+        remoteService = global.backendService || global.firebaseService || (typeof require !== 'undefined' ? require('./backend-service') : null);
     } catch (error) {
-        firebaseService = null;
+        remoteService = null;
     }
 
     function persist(key, value){
-        if(!firebaseService || typeof firebaseService.persistKey !== 'function'){
+        if(!remoteService || typeof remoteService.persistKey !== 'function'){
             return;
         }
         try {
-            const result = firebaseService.persistKey(key, value);
+            const result = remoteService.persistKey(key, value);
             if(result && typeof result.catch === 'function'){
-                result.catch(err => console.error(`Falha ao sincronizar chave ${key} com Firebase`, err));
+                result.catch(err => console.error(`Falha ao sincronizar chave ${key} com a API remota`, err));
             }
         } catch (error) {
-            console.error(`Erro inesperado ao tentar sincronizar ${key} com Firebase`, error);
+            console.error(`Erro inesperado ao tentar sincronizar ${key} com a API remota`, error);
         }
     }
 

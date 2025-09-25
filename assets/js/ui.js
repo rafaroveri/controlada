@@ -58,13 +58,13 @@
         return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     });
     function init(){
-        const firebaseService = window.firebaseService;
+        const authService = window.backendService || window.firebaseService;
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-        if(firebaseService && firebaseService.isFirebaseAvailable && typeof firebaseService.ensureAuthenticated === 'function'){
-            firebaseService.ensureAuthenticated()
+        if(authService && authService.isRemoteAvailable && typeof authService.ensureAuthenticated === 'function'){
+            authService.ensureAuthenticated()
                 .then(() => {
-                    bootInterface(firebaseService);
+                    bootInterface(authService);
                 })
                 .catch(() => {
                     window.location.href = 'login.html';
@@ -81,10 +81,10 @@
             return;
         }
 
-        bootInterface(firebaseService);
+        bootInterface(authService);
     }
 
-    function bootInterface(firebaseService){
+    function bootInterface(authService){
 
     // --- Renda e sobra ---
     
@@ -1394,9 +1394,9 @@
     if (logoutLink) {
         logoutLink.addEventListener('click', function(e) {
             e.preventDefault();
-            if (firebaseService && typeof firebaseService.logout === 'function') {
-                firebaseService.logout().catch(error => {
-                    console.error('Erro ao encerrar sessão no Firebase', error);
+            if (authService && typeof authService.logout === 'function') {
+                authService.logout().catch(error => {
+                    console.error('Erro ao encerrar sessão remoto', error);
                 }).finally(() => {
                     window.location.href = 'login.html';
                 });
