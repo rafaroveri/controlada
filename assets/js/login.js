@@ -1,12 +1,12 @@
-// login.js - Autenticação utilizando Firebase Auth (com fallback local)
+// login.js - Autenticação utilizando API própria (com fallback local)
 
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('login-form');
     const cadastroForm = document.getElementById('cadastro-form');
     const mostrarCadastro = document.getElementById('mostrar-cadastro');
     const voltarLogin = document.getElementById('voltar-login');
-    const firebaseService = window.firebaseService;
-    const hasFirebase = firebaseService && firebaseService.isFirebaseAvailable;
+    const backendService = window.backendService || window.firebaseService;
+    const hasRemote = backendService && backendService.isRemoteAvailable;
 
     function toggleCadastro(exibir){
         if(exibir){
@@ -42,26 +42,24 @@ document.addEventListener('DOMContentLoaded', function() {
         button.textContent = loading ? 'Aguarde...' : button.dataset.originalText;
     }
 
-    function mapFirebaseError(error){
+    function mapApiError(error){
         if(!error){
             return 'Ocorreu um erro inesperado. Tente novamente.';
         }
-        const code = error.code || '';
-        switch(code){
-            case 'auth/user-not-found':
-            case 'auth/wrong-password':
-                return 'Usuário ou senha inválidos.';
-            case 'auth/invalid-email':
-                return 'E-mail inválido.';
-            case 'auth/email-already-in-use':
-                return 'Este e-mail já está sendo utilizado.';
-            case 'auth/weak-password':
-                return 'A senha deve ter pelo menos 6 caracteres.';
-            case 'auth/too-many-requests':
-                return 'Muitas tentativas de login. Aguarde alguns instantes.';
-            default:
-                return error.message || 'Não foi possível completar a operação.';
+        const code = error.code || error.status || '';
+        if(code === 'NOT_AUTHENTICATED' || code === 401){
+            return 'Sessão expirada. Faça login novamente.';
         }
+        if(code === 'NETWORK_ERROR'){
+            return 'Não foi possível comunicar com o servidor. Verifique sua conexão.';
+        }
+        if(code === 409 || code === 'USERNAME_TAKEN'){
+            return 'Nome de usuário já está em uso.';
+        }
+        if(code === 422 || code === 'VALIDATION_ERROR'){
+            return error.message || 'Dados inválidos. Verifique as informações enviadas.';
+        }
+        return error.message || 'Não foi possível completar a operação.';
     }
 
     const ADMIN_HASH = '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4';
@@ -120,16 +118,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             setLoading(submitButton, true);
             try {
-                if(hasFirebase){
-                    await firebaseService.loginWithUsername(usuario, senha);
-                    await firebaseService.loadUserDataToLocalCache(true);
+                if(hasRemote){
+                    await backendService.loginWithUsername(usuario, senha);
+                    await backendService.loadUserDataToLocalCache(true);
                     window.location.href = 'index.html';
                 } else {
                     await handleLocalLogin(usuario, senha);
                 }
             } catch (error) {
                 console.error('Erro ao efetuar login', error);
-                alert(hasFirebase ? mapFirebaseError(error) : (error.message || 'Não foi possível efetuar login.'));
+                alert(hasRemote ? mapApiError(error) : (error.message || 'Não foi possível efetuar login.'));
             } finally {
                 setLoading(submitButton, false);
             }
@@ -179,8 +177,8 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             try {
-                if(hasFirebase){
-                    await firebaseService.registerUser(dados);
+                if(hasRemote){
+                    await backendService.registerUser(dados);
                     alert('Cadastro realizado com sucesso! Redirecionando...');
                     window.location.href = 'index.html';
                 } else {
@@ -191,18 +189,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (error) {
                 console.error('Erro ao cadastrar usuário', error);
-                alert(hasFirebase ? mapFirebaseError(error) : (error.message || 'Não foi possível concluir o cadastro.'));
+                alert(hasRemote ? mapApiError(error) : (error.message || 'Não foi possível concluir o cadastro.'));
             } finally {
                 setLoading(submitButton, false);
             }
         });
     }
 
-    if(hasFirebase && firebaseService && typeof firebaseService.onAuthStateChanged === 'function'){
-        firebaseService.onAuthStateChanged(async user => {
+    if(hasRemote && backendService && typeof backendService.onAuthStateChanged === 'function'){
+        backendService.onAuthStateChanged(async user => {
             if(user){
                 try {
-                    await firebaseService.loadUserDataToLocalCache();
+                    await backendService.loadUserDataToLocalCache();
                     window.location.href = 'index.html';
                 } catch (error) {
                     console.error('Erro ao sincronizar dados após autenticação', error);
