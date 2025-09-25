@@ -29,7 +29,10 @@
                 <select id="mes-ano-gastos" class="combobox-padrao"></select>
             </div>
             <button id="theme-toggle" class="theme-toggle" aria-label="Tema">🌓</button>
-            <span id="recorrentes-alert" class="recorrentes-alert" style="display:none;">🔔</span>
+            <button id="recorrentes-alert" class="recorrentes-alert" type="button" aria-label="Gastos recorrentes pendentes" style="display:none;">
+                <span class="recorrentes-alert-icon" aria-hidden="true">🔔</span>
+                <span class="recorrentes-alert-badge" aria-hidden="true"></span>
+            </button>
             <ul class="nav-list">
                 <li><a href="#" data-section="tela-gastos">Gastos</a></li>
                 <li><a href="#" data-section="tela-investimentos">Investimentos</a></li>
@@ -668,7 +671,17 @@
             </div>
         </div>
     </div>
-    
+    <div id="modal-gastos-recorrentes" class="modal-editar-renda" style="display:none;">
+        <div class="modal-editar-renda-content" role="dialog" aria-modal="true" aria-labelledby="modal-recorrentes-titulo">
+            <span class="modal-editar-renda-close" id="modal-recorrentes-close">&times;</span>
+            <h3 id="modal-recorrentes-titulo">Gastos recorrentes pendentes</h3>
+            <div id="lista-recorrentes-pendentes" class="modal-recorrentes-lista" aria-live="polite"></div>
+            <div class="modal-editar-renda-actions">
+                <button type="button" class="modal-editar-renda-cancelar" id="modal-recorrentes-fechar">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="assets/js/storage.js"></script>
     <script src="assets/js/categories.js"></script>
