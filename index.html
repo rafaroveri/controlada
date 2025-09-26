@@ -5,16 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/dashboard-improvements.css">
     <link rel="stylesheet" href="assets/css/missing-styles.css">
     <title>Controlada</title>
-    <script src="assets/config/app-config.js"></script>
+    <script src="assets/config/app-config.js" defer></script>
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
     <header class="main-header">
-        <nav class="navbar">
+        <nav class="navbar" role="navigation" aria-label="Navegação principal">
             <div class="logo-container">
                 <img src="assets/images/logo.png" alt="Logo" class="logo-img">
             </div>
@@ -37,7 +38,7 @@
         </nav>
     </header>
     <div class="page-layout">
-        <div class="sidebar-col" id="sidebar-panel" aria-hidden="false">
+        <div class="sidebar-col" id="sidebar-panel" aria-hidden="false" role="complementary" aria-labelledby="sidebar-title">
             <div class="sidebar">
                 <button class="sidebar-edit-btn" id="editar-renda-btn" title="Editar renda" aria-label="Editar renda">
                     <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 20 20" fill="none"><path d="M14.85 2.85a1.2 1.2 0 0 1 1.7 1.7l-9.2 9.2-2.1.4.4-2.1 9.2-9.2Zm2.12-2.12a3.2 3.2 0 0 0-4.53 0l-9.2 9.2A1 1 0 0 0 3 10.7l-.7 3.5a1 1 0 0 0 1.17 1.17l3.5-.7a1 1 0 0 0 .7-.29l9.2-9.2a3.2 3.2 0 0 0 0-4.53Z" fill="currentColor"/></svg>
@@ -58,7 +59,7 @@
                 </div>
             </div>
             <div class="sidebar-categoria-cadastro" id="sidebar-categoria-cadastro">
-                <h4 class="sidebar-categoria-titulo">Cadastrar nova categoria</h4>
+                <h4 class="sidebar-categoria-titulo" id="sidebar-title">Cadastrar nova categoria</h4>
                 <form id="form-categoria">
                     <div class="sidebar-categoria-form-group">
                         <label for="nome-categoria" class="sidebar-categoria-label">Nome da categoria</label>
@@ -76,7 +77,8 @@
             </div>
         </div>
         <div class="main-content">
-            <main>
+            <main id="main-content" aria-labelledby="main-heading">
+                <h1 id="main-heading" class="visually-hidden">Painel principal do Controlada</h1>
                 <section id="tela-gastos">
                     <div class="tabs">
                         <button class="tab-btn active" data-tab="tab-form">✨ Inserir Gastos</button>
@@ -476,6 +478,11 @@
                                     </div>
                                     <div class="insight-body">
                                         <canvas id="chart-metodos" width="300" height="200"></canvas>
+                                        <table id="chart-metodos-table" class="chart-data-table visually-hidden" aria-live="polite">
+                                            <caption>Distribuição dos métodos de pagamento</caption>
+                                            <thead></thead>
+                                            <tbody></tbody>
+                                        </table>
                                     </div>
                                 </div>
                                 
@@ -521,7 +528,7 @@
                             <p>Visualize seus gastos de forma clara e intuitiva</p>
                         </div>
                         
-                        <div class="graficos-tabs">
+                        <div class="graficos-tabs" role="tablist" aria-label="Abas de gráficos">
                             <button class="tab-grafico-btn active" data-subtab="subtab-categoria">
                                 <span class="tab-icon">📊</span>
                                 Por Categoria
@@ -544,6 +551,11 @@
                                     <h4>Nenhum gasto encontrado</h4>
                                     <p>Adicione alguns gastos para ver os gráficos aqui</p>
                                 </div>
+                                <table id="chart-categoria-table" class="chart-data-table visually-hidden" aria-live="polite">
+                                    <caption>Totais de gastos por categoria</caption>
+                                    <thead></thead>
+                                    <tbody></tbody>
+                                </table>
                             </div>
                         </div>
                         
@@ -559,6 +571,11 @@
                                     <h4>Nenhum histórico encontrado</h4>
                                     <p>Adicione gastos em diferentes meses para ver a evolução</p>
                                 </div>
+                                <table id="chart-mensal-table" class="chart-data-table visually-hidden" aria-live="polite">
+                                    <caption>Evolução mensal dos gastos</caption>
+                                    <thead></thead>
+                                    <tbody></tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -591,12 +608,26 @@
         </div>
     </div>
 
-    <nav class="bottom-nav" id="bottom-nav" style="display:none;">
-        <button data-tab="tab-form">💰</button>
-        <button data-tab="tab-historico">📋</button>
-        <button data-tab="tab-dashboard">📈</button>
-        <button data-tab="tab-graficos">📊</button>
+    <nav class="bottom-nav" id="bottom-nav" style="display:none;" role="navigation" aria-label="Navegação rápida pelas abas">
+        <button data-tab="tab-form" type="button" aria-label="Inserir gastos" aria-pressed="true">
+            <span class="bottom-nav-icon" aria-hidden="true">💰</span>
+            <span class="bottom-nav-label">Inserir</span>
+        </button>
+        <button data-tab="tab-historico" type="button" aria-label="Histórico de gastos" aria-pressed="false">
+            <span class="bottom-nav-icon" aria-hidden="true">📋</span>
+            <span class="bottom-nav-label">Histórico</span>
+        </button>
+        <button data-tab="tab-dashboard" type="button" aria-label="Dashboard financeiro" aria-pressed="false">
+            <span class="bottom-nav-icon" aria-hidden="true">📈</span>
+            <span class="bottom-nav-label">Dashboard</span>
+        </button>
+        <button data-tab="tab-graficos" type="button" aria-label="Gráficos detalhados" aria-pressed="false">
+            <span class="bottom-nav-icon" aria-hidden="true">📊</span>
+            <span class="bottom-nav-label">Gráficos</span>
+        </button>
     </nav>
+
+    <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
 
     <div id="modal-editar-renda" class="modal-editar-renda" style="display:none;">
         <div class="modal-editar-renda-content">
@@ -689,14 +720,13 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="assets/js/backend-service.js"></script>
-    <script src="assets/js/storage.js"></script>
-    <script src="assets/js/categories.js"></script>
-    <script src="assets/js/constants.js"></script>
-    <script src="assets/js/data-service.js"></script>
-    <script src="assets/js/charts.js"></script>
-    <script src="assets/js/ui.js"></script>
-    <script src="assets/js/main.js"></script>
+    <script src="assets/js/backend-service.js" defer></script>
+    <script src="assets/js/storage.js" defer></script>
+    <script src="assets/js/categories.js" defer></script>
+    <script src="assets/js/constants.js" defer></script>
+    <script src="assets/js/data-service.js" defer></script>
+    <script src="assets/js/charts.js" defer></script>
+    <script src="assets/js/ui.js" defer></script>
+    <script src="assets/js/main.js" defer></script>
   </body>
 </html>
