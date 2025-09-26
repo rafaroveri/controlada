@@ -95,7 +95,11 @@
     const editarRendaBtn = document.getElementById('editar-renda-btn');
     const menuToggleBtn = document.getElementById('menu-toggle');
     const themeToggleBtn = document.getElementById('theme-toggle');
+    const sidebarCol = document.getElementById('sidebar-panel');
     const recorrentesAlertBtn = document.getElementById('recorrentes-alert');
+    const mobileMediaQuery = typeof window.matchMedia === 'function'
+        ? window.matchMedia('(max-width: 768px)')
+        : { matches: false };
 
     // Modal elementos - verificação segura
     const modal = document.getElementById('modal-editar-renda');
@@ -439,7 +443,7 @@
         const quantidade = recorrentesPendentes.length;
         const badge = recorrentesAlertBtn.querySelector('.recorrentes-alert-badge');
         if(quantidade > 0){
-            recorrentesAlertBtn.style.display = 'inline-flex';
+            recorrentesAlertBtn.hidden = false;
             const plural = quantidade > 1 ? 's' : '';
             const descricao = `${quantidade} gasto${plural} recorrente${plural} pendente${plural}`;
             recorrentesAlertBtn.setAttribute('aria-label', `${descricao}. Clique para visualizar`);
@@ -448,7 +452,7 @@
                 badge.textContent = quantidade > 99 ? '99+' : String(quantidade);
             }
         } else {
-            recorrentesAlertBtn.style.display = 'none';
+            recorrentesAlertBtn.hidden = true;
             recorrentesAlertBtn.removeAttribute('title');
             recorrentesAlertBtn.setAttribute('aria-label', 'Gastos recorrentes pendentes');
             if(badge){
@@ -1338,18 +1342,53 @@
         chartsManager.refreshAll();
     }
 
+    function isSidebarExpanded(){
+        if(!sidebarCol){
+            return false;
+        }
+        if(!mobileMediaQuery.matches){
+            return true;
+        }
+        return sidebarCol.classList.contains('show-sidebar');
+    }
+
+    function syncMenuAccessibility(){
+        if(!menuToggleBtn || !sidebarCol){
+            return;
+        }
+        const expanded = isSidebarExpanded();
+        menuToggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        menuToggleBtn.setAttribute('aria-label', expanded ? 'Fechar painel lateral' : 'Abrir painel lateral');
+        sidebarCol.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+    }
+
     if (menuToggleBtn) {
         menuToggleBtn.addEventListener('click', () => {
-            const sidebarCol = document.querySelector('.sidebar-col');
             if (sidebarCol) {
                 sidebarCol.classList.toggle('show-sidebar');
+                syncMenuAccessibility();
             }
         });
+        if (typeof mobileMediaQuery.addEventListener === 'function') {
+            mobileMediaQuery.addEventListener('change', () => {
+                syncMenuAccessibility();
+            });
+        } else if (typeof mobileMediaQuery.addListener === 'function') {
+            mobileMediaQuery.addListener(() => {
+                syncMenuAccessibility();
+            });
+        }
+        syncMenuAccessibility();
     }
 
     function applyTheme(theme) {
         document.body.setAttribute('data-theme', theme);
         localStorage.setItem('tema_preferido', theme);
+        if(themeToggleBtn){
+            const isDark = theme === 'dark';
+            themeToggleBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+            themeToggleBtn.setAttribute('aria-label', isDark ? 'Ativar tema claro' : 'Ativar tema escuro');
+        }
     }
 
     if (themeToggleBtn) {
@@ -1359,7 +1398,7 @@
         });
     }
 
-    const savedTheme = localStorage.getItem('tema_preferido') || 'default';
+    const savedTheme = localStorage.getItem('tema_preferido') || document.body.getAttribute('data-theme') || 'default';
     applyTheme(savedTheme);
 
     const navLinks = document.querySelectorAll('.nav-list a[data-section]');

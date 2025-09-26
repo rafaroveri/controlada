@@ -534,6 +534,10 @@ body[data-theme="dark"] .beneficio-empty {
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
+    margin-left: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .filtro-mes-header:hover {
@@ -545,6 +549,7 @@ body[data-theme="dark"] .beneficio-empty {
     color: var(--dark-moss-green);
     font-weight: 600;
     font-size: 0.95rem;
+    margin-right: 0.25rem;
 }
 
 .nav-list {
@@ -1616,6 +1621,48 @@ body[data-theme="dark"] .modal-recorrentes-empty {
     cursor: pointer;
     font-size: 1.2rem;
     margin-left: 0.5rem;
+}
+
+.sidebar-categoria-titulo--spaced {
+    margin-top: 2rem;
+}
+
+.field-hint {
+    font-size: 0.85rem;
+    color: rgba(77, 102, 25, 0.75);
+    margin-top: 0.35rem;
+}
+
+body[data-theme="dark"] .field-hint {
+    color: rgba(208, 231, 140, 0.75);
+}
+
+.form-feedback {
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.form-feedback.is-error {
+    background: rgba(220, 53, 69, 0.12);
+    color: #942431;
+}
+
+.form-feedback.is-success {
+    background: rgba(73, 160, 120, 0.18);
+    color: #2e6e55;
+}
+
+body[data-theme="dark"] .form-feedback.is-error {
+    background: rgba(220, 53, 69, 0.25);
+    color: #ffb3b3;
+}
+
+body[data-theme="dark"] .form-feedback.is-success {
+    background: rgba(73, 160, 120, 0.25);
+    color: #d0e78c;
 }
 
 /* Sidebar mobile */
