@@ -67,8 +67,10 @@ cd controlada
 ```
 
 3. Configure a API:
+   - Instale as dependências do backend `npm install`
+   - Crie um arquivo `.env` na raiz com as variáveis mínimas: `DATABASE_URL`, `JWT_SECRET` e opcionalmente `PORT`
+   - Execute `npm start` para subir a API Express (`http://localhost:3333` por padrão)
    - Defina o endpoint base da sua API REST no arquivo `assets/config/app-config.js`
-   - Consulte o documento `docs/database/postgresql.md` para detalhes sobre o backend sugerido
 
 4. Abra o `index.html` em um navegador ou use um servidor local:
 ```bash
@@ -101,6 +103,20 @@ npx http-server
 - Configurar dia de início do ciclo financeiro
 - Gerenciar categorias personalizadas
 - Configurações de conta
+
+## 🔌 API REST (Node/Express)
+
+A aplicação agora conta com uma API própria construída em Node.js/Express com PostgreSQL. Principais rotas disponíveis:
+
+- `POST /auth/register` – cadastro de usuário com criação automática de perfil e renda base.
+- `POST /auth/login` / `POST /auth/refresh` – autenticação com tokens JWT (access + refresh) armazenados no PostgreSQL.
+- `POST /auth/logout` / `GET /auth/me` – encerramento de sessão e consulta ao perfil autenticado.
+- `GET /sync/snapshot` – retorna o espelho completo dos dados (renda, benefícios, categorias, gastos, metas, etc.).
+- `PUT /sync/<chave>` – sincroniza incrementos por chave (`renda_usuario`, `beneficios_usuario`, `gastos_usuario`, `config_inicio_mes`, entre outras).
+
+Cada operação registra eventos em `audit_events` para facilitar rastreabilidade e está alinhada ao modelo definido em `docs/database/postgresql.md`.
+
+> Precisa saber como gerar usuários, tokens e dados iniciais? Confira o guia completo em [`docs/backend/data-bootstrap.md`](docs/backend/data-bootstrap.md).
 
 ## 🎨 Design System
 
