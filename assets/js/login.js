@@ -7,16 +7,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const voltarLogin = document.getElementById('voltar-login');
     const backendService = window.backendService || window.firebaseService;
     const hasRemote = backendService && backendService.isRemoteAvailable;
+    const loginFeedback = document.getElementById('login-feedback');
+    const cadastroFeedback = document.getElementById('cadastro-feedback');
+
+    function clearFeedback(target){
+        if(!target){
+            return;
+        }
+        target.textContent = '';
+        target.hidden = true;
+        target.classList.remove('is-error', 'is-success');
+    }
+
+    function showFeedback(target, message, type = 'error'){
+        if(!target){
+            return;
+        }
+        target.hidden = false;
+        target.textContent = message;
+        target.classList.remove('is-error', 'is-success');
+        target.classList.add(type === 'success' ? 'is-success' : 'is-error');
+    }
 
     function toggleCadastro(exibir){
         if(exibir){
             loginForm.style.display = 'none';
             cadastroForm.style.display = 'flex';
             mostrarCadastro.style.display = 'none';
+            clearFeedback(loginFeedback);
+            clearFeedback(cadastroFeedback);
         } else {
             cadastroForm.style.display = 'none';
             loginForm.style.display = 'flex';
             mostrarCadastro.style.display = 'block';
+            clearFeedback(cadastroFeedback);
         }
     }
 
@@ -76,9 +100,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if((usuario === 'admin' && senhaHash === ADMIN_HASH) || (usuarios[usuario] && usuarios[usuario] === senhaHash)){
                 localStorage.setItem('autenticado', 'true');
                 window.location.href = 'index.html';
-            } else {
-                alert('Usuário ou senha inválidos!');
+                return true;
             }
+            throw new Error('Usuário ou senha inválidos!');
         });
     }
 
@@ -111,8 +135,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const senha = document.getElementById('senha').value;
             const submitButton = loginForm.querySelector('button[type="submit"]');
 
+            clearFeedback(loginFeedback);
+
             if(!usuario || !senha){
-                alert('Informe usuário e senha.');
+                showFeedback(loginFeedback, 'Informe usuário e senha para continuar.');
                 return;
             }
 
@@ -127,7 +153,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (error) {
                 console.error('Erro ao efetuar login', error);
-                alert(hasRemote ? mapApiError(error) : (error.message || 'Não foi possível efetuar login.'));
+                const message = hasRemote ? mapApiError(error) : (error.message || 'Não foi possível efetuar login.');
+                showFeedback(loginFeedback, message);
             } finally {
                 setLoading(submitButton, false);
             }
@@ -148,18 +175,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const themePreference = document.getElementById('tema-preferido').value || 'light';
             const submitButton = cadastroForm.querySelector('button[type="submit"]');
 
+            clearFeedback(cadastroFeedback);
+
             if(!fullName || !email || !username || !password){
-                alert('Preencha todos os campos obrigatórios.');
+                showFeedback(cadastroFeedback, 'Preencha todos os campos obrigatórios.');
                 return;
             }
 
             if(password !== confirmPassword){
-                alert('As senhas não coincidem.');
+                showFeedback(cadastroFeedback, 'As senhas não coincidem.');
                 return;
             }
 
             if(password.length < 6){
-                alert('A senha deve ter pelo menos 6 caracteres.');
+                showFeedback(cadastroFeedback, 'A senha deve ter pelo menos 6 caracteres.');
                 return;
             }
 
@@ -179,17 +208,20 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 if(hasRemote){
                     await backendService.registerUser(dados);
-                    alert('Cadastro realizado com sucesso! Redirecionando...');
-                    window.location.href = 'index.html';
+                    showFeedback(cadastroFeedback, 'Cadastro realizado com sucesso! Redirecionando...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 800);
                 } else {
                     await handleLocalRegister(dados);
-                    alert('Cadastro realizado com sucesso! Faça login.');
                     cadastroForm.reset();
+                    showFeedback(loginFeedback, 'Cadastro realizado com sucesso! Faça login.', 'success');
                     toggleCadastro(false);
                 }
             } catch (error) {
                 console.error('Erro ao cadastrar usuário', error);
-                alert(hasRemote ? mapApiError(error) : (error.message || 'Não foi possível concluir o cadastro.'));
+                const message = hasRemote ? mapApiError(error) : (error.message || 'Não foi possível concluir o cadastro.');
+                showFeedback(cadastroFeedback, message);
             } finally {
                 setLoading(submitButton, false);
             }
