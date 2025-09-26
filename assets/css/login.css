@@ -104,23 +104,27 @@ body.login-body {
 }
 
 .brand-pill {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 0.75rem;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(154, 205, 50, 0.35);
-    padding: 0.45rem 1rem;
-    border-radius: 999px;
-    font-weight: 600;
-    color: var(--dark-moss-green);
-    letter-spacing: 0.4px;
-    width: fit-content;
+    justify-content: flex-start;
+    background: transparent;
+    border: none;
+    padding: 0;
+    width: auto;
+    align-self: flex-start;
 }
 
 .logo-pill-img {
-    height: 36px;
-    width: 36px;
+    height: clamp(120px, 18vw, 168px);
+    width: auto;
+    max-width: 100%;
     object-fit: contain;
+}
+
+@media (max-width: 720px) {
+    .logo-pill-img {
+        height: clamp(92px, 26vw, 128px);
+    }
 }
 
 .card-illustration h1 {
@@ -279,6 +283,7 @@ body.login-body {
     color: var(--login-text-dark);
     outline: none;
     width: 100%;
+
 }
 
 .input-wrapper select {
@@ -367,6 +372,7 @@ body.login-body {
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.25s ease;
+
 }
 
 .toggle-link:hover::after,
@@ -417,7 +423,6 @@ body.login-body {
         justify-content: center;
     }
 }
-
 @media (max-width: 520px) {
     .login-shell {
         padding: 2rem 0.6rem;
