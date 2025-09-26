@@ -283,6 +283,7 @@ body.login-body {
     color: var(--login-text-dark);
     outline: none;
     width: 100%;
+
 }
 
 .input-wrapper select {
@@ -371,6 +372,7 @@ body.login-body {
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.25s ease;
+
 }
 
 .toggle-link:hover::after,
@@ -421,7 +423,6 @@ body.login-body {
         justify-content: center;
     }
 }
-
 @media (max-width: 520px) {
     .login-shell {
         padding: 2rem 0.6rem;
