@@ -57,6 +57,22 @@
         const numero = typeof valor === 'number' ? valor : parseFloat(valor || 0);
         return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     });
+    const scheduleFrame = (typeof window.requestAnimationFrame === 'function')
+        ? window.requestAnimationFrame.bind(window)
+        : function(callback){
+            if(typeof Promise === 'function'){
+                Promise.resolve().then(callback);
+            } else {
+                setTimeout(callback, 0);
+            }
+        };
+    const queueTask = function(callback){
+        if(typeof Promise === 'function'){
+            Promise.resolve().then(callback);
+        } else {
+            setTimeout(callback, 0);
+        }
+    };
     function init(){
         const authService = window.backendService || window.firebaseService;
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -96,10 +112,13 @@
     const menuToggleBtn = document.getElementById('menu-toggle');
     const themeToggleBtn = document.getElementById('theme-toggle');
     const sidebarCol = document.getElementById('sidebar-panel');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const bodyElement = document.body;
     const recorrentesAlertBtn = document.getElementById('recorrentes-alert');
     const mobileMediaQuery = typeof window.matchMedia === 'function'
         ? window.matchMedia('(max-width: 768px)')
         : { matches: false };
+    const focusableSidebarSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
     // Modal elementos - verificação segura
     const modal = document.getElementById('modal-editar-renda');
@@ -876,22 +895,27 @@
         const mesAno = getMesAnoSelecionado();
         const detalhes = obterRendaDetalhada();
         const totalGastos = dataService.getTotalGastosMes(mesAno);
-        if (rendaValor) {
-            rendaValor.textContent = formatCurrency(detalhes.total);
-        }
-        if (sobraValor) {
-            sobraValor.textContent = formatCurrency(detalhes.total - totalGastos);
-        }
-        atualizarResumoBeneficios(detalhes);
-        atualizarHistoricoGastos(mesAno);
-        atualizarSeletoresMetodos();
 
-        // Atualizar estatísticas do hero
-        atualizarEstatisticasHero();
+        const applyUpdates = () => {
+            if (rendaValor) {
+                rendaValor.textContent = formatCurrency(detalhes.total);
+            }
+            if (sobraValor) {
+                sobraValor.textContent = formatCurrency(detalhes.total - totalGastos);
+            }
+            atualizarResumoBeneficios(detalhes);
+            atualizarHistoricoGastos(mesAno);
+            atualizarSeletoresMetodos();
+            atualizarEstatisticasHero();
+            if (typeof atualizarDashboard === 'function') {
+                atualizarDashboard();
+            }
+        };
 
-        // Sempre atualizar dashboard quando dados mudam
-        if (typeof atualizarDashboard === 'function') {
-            atualizarDashboard();
+        scheduleFrame(applyUpdates);
+
+        if (chartsManager && typeof chartsManager.refreshAll === 'function') {
+            queueTask(() => chartsManager.refreshAll());
         }
     }
 
@@ -1159,7 +1183,7 @@
             const originalIdx = lista.length - 1 - displayIdx;
             
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${descricao}</td><td class="valor-cell">${formatCurrency(g.valor)}</td><td>${categoria}</td><td>${metodo}</td><td class="data-cell">📅 ${dataFormatada}</td><td class="action-cell"><button class='btn-delete-modern' title='Excluir gasto' data-idx='${originalIdx}'>🗑️</button></td>`;
+            tr.innerHTML = `<td data-label="Descrição">${descricao}</td><td data-label="Valor" class="valor-cell">${formatCurrency(g.valor)}</td><td data-label="Categoria">${categoria}</td><td data-label="Método">${metodo}</td><td data-label="Data" class="data-cell">📅 ${dataFormatada}</td><td data-label="Ações" class="action-cell"><button class='btn-delete-modern' title='Excluir gasto' aria-label='Excluir gasto' data-idx='${originalIdx}'>🗑️</button></td>`;
             tbody.appendChild(tr);
         });
         // Adiciona evento aos botões de exclusão
@@ -1360,26 +1384,92 @@
         menuToggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         menuToggleBtn.setAttribute('aria-label', expanded ? 'Fechar painel lateral' : 'Abrir painel lateral');
         sidebarCol.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+        if(sidebarOverlay){
+            if(expanded && mobileMediaQuery.matches){
+                sidebarOverlay.hidden = false;
+                sidebarOverlay.classList.add('is-visible');
+            } else {
+                sidebarOverlay.classList.remove('is-visible');
+                sidebarOverlay.hidden = true;
+            }
+        }
+        if(bodyElement){
+            const preventScroll = expanded && mobileMediaQuery.matches;
+            bodyElement.classList.toggle('no-scroll', preventScroll);
+        }
+    }
+
+    function focusSidebar(expanded){
+        if(!mobileMediaQuery.matches){
+            return;
+        }
+        if(expanded){
+            const firstFocusable = sidebarCol ? sidebarCol.querySelector(focusableSidebarSelector) : null;
+            if(firstFocusable && typeof firstFocusable.focus === 'function'){
+                queueTask(() => firstFocusable.focus());
+            }
+        } else if(menuToggleBtn && typeof menuToggleBtn.focus === 'function'){
+            queueTask(() => menuToggleBtn.focus());
+        }
+    }
+
+    function openSidebar(){
+        if(!sidebarCol){
+            return;
+        }
+        sidebarCol.classList.add('show-sidebar');
+        syncMenuAccessibility();
+        focusSidebar(true);
+    }
+
+    function closeSidebar(){
+        if(!sidebarCol){
+            return;
+        }
+        sidebarCol.classList.remove('show-sidebar');
+        syncMenuAccessibility();
+        focusSidebar(false);
     }
 
     if (menuToggleBtn) {
         menuToggleBtn.addEventListener('click', () => {
-            if (sidebarCol) {
-                sidebarCol.classList.toggle('show-sidebar');
-                syncMenuAccessibility();
+            if(isSidebarExpanded()){
+                closeSidebar();
+            } else {
+                openSidebar();
             }
         });
         if (typeof mobileMediaQuery.addEventListener === 'function') {
-            mobileMediaQuery.addEventListener('change', () => {
+            mobileMediaQuery.addEventListener('change', (event) => {
+                if(!event.matches && sidebarCol){
+                    sidebarCol.classList.remove('show-sidebar');
+                }
                 syncMenuAccessibility();
             });
         } else if (typeof mobileMediaQuery.addListener === 'function') {
-            mobileMediaQuery.addListener(() => {
+            mobileMediaQuery.addListener((event) => {
+                if(event && event.matches === false && sidebarCol){
+                    sidebarCol.classList.remove('show-sidebar');
+                }
                 syncMenuAccessibility();
             });
         }
         syncMenuAccessibility();
     }
+
+    if(sidebarOverlay){
+        sidebarOverlay.addEventListener('click', () => {
+            if(isSidebarExpanded()){
+                closeSidebar();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if(event.key === 'Escape' && isSidebarExpanded() && mobileMediaQuery.matches){
+            closeSidebar();
+        }
+    });
 
     function applyTheme(theme) {
         document.body.setAttribute('data-theme', theme);
@@ -1475,15 +1565,27 @@
     });
 
     const bottomNav = document.getElementById('bottom-nav');
+    const bottomNavButtons = bottomNav ? Array.from(bottomNav.querySelectorAll('button')) : [];
+    function setBottomNavState(activeTab){
+        if(!bottomNavButtons.length){
+            return;
+        }
+        bottomNavButtons.forEach(button => {
+            const isActive = button.dataset.tab === activeTab;
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    }
     if (bottomNav) {
-        bottomNav.querySelectorAll('button').forEach(btn => {
+        bottomNavButtons.forEach(btn => {
             btn.addEventListener('click', () => {
+                setBottomNavState(btn.dataset.tab);
                 const targetButton = document.querySelector(`.tab-btn[data-tab="${btn.dataset.tab}"]`);
                 if (targetButton) {
                     targetButton.click();
                 }
             });
         });
+        setBottomNavState('tab-form');
     }
 
     let touchStartX = 0;
@@ -1560,12 +1662,18 @@
     const categoriaCanvas = document.getElementById('chartCategoria');
     const mensalCanvas = document.getElementById('chartMensal');
     const metodosCanvas = document.getElementById('chart-metodos');
+    const categoriaTable = document.getElementById('chart-categoria-table');
+    const mensalTable = document.getElementById('chart-mensal-table');
+    const metodosTable = document.getElementById('chart-metodos-table');
     if (chartsManager && typeof chartsManager.init === 'function') {
         chartsManager.init({
             selectMesAno,
             categoriaCanvas,
             mensalCanvas,
-            metodosCanvas
+            metodosCanvas,
+            categoriaTable,
+            mensalTable,
+            metodosTable
         });
     }
     // Configuração do dia de início do mês financeiro: inicializa campo e salva valor
@@ -1730,7 +1838,7 @@
             );
             
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${descricao}</td><td class="valor-cell">${formatCurrency(g.valor)}</td><td>${categoria}</td><td>${metodo}</td><td class="data-cell">📅 ${dataFormatada}</td><td class="action-cell"><button class='btn-delete-modern' title='Excluir gasto' data-idx='${originalIdx}'>🗑️</button></td>`;
+            tr.innerHTML = `<td data-label="Descrição">${descricao}</td><td data-label="Valor" class="valor-cell">${formatCurrency(g.valor)}</td><td data-label="Categoria">${categoria}</td><td data-label="Método">${metodo}</td><td data-label="Data" class="data-cell">📅 ${dataFormatada}</td><td data-label="Ações" class="action-cell"><button class='btn-delete-modern' title='Excluir gasto' aria-label='Excluir gasto' data-idx='${originalIdx}'>🗑️</button></td>`;
             tbody.appendChild(tr);
         });
         
@@ -2095,6 +2203,7 @@
 
         if (targetElement) {
             targetElement.style.display = 'block';
+            setBottomNavState(target);
 
             if (target === 'tab-graficos') {
                 setTimeout(() => {

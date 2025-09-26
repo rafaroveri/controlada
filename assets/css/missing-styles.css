@@ -1146,7 +1146,7 @@
 
 .comparativo-label {
     font-weight: 600;
-    color: rgba(77, 102, 25, 0.8);
+    color: var(--text-muted);
 }
 
 .comparativo-valor {

@@ -366,8 +366,8 @@
         };
     }
 
-    function getDistribuicaoMetodosPagamento(){
-        const mesAtual = getCurrentCycleKeyStr();
+    function getDistribuicaoMetodosPagamento(mesAno){
+        const mesAtual = mesAno || getCurrentCycleKeyStr();
         const gastos = getGastosDoMesAno(mesAtual);
         const distribuicao = {};
         let total = 0;
