@@ -12,67 +12,153 @@
     <script src="assets/config/app-config.js"></script>
     <script src="assets/js/backend-service.js"></script>
 </head>
-<body>
-    <div class="login-container">
-        <img src="assets/images/logo.png" alt="Logo" class="logo-img">
-        <form id="login-form">
-            <div>
-                <label for="usuario">Usuário</label>
-                <input type="text" id="usuario" name="usuario" required>
-            </div>
-            <div>
-                <label for="senha">Senha</label>
-                <input type="password" id="senha" name="senha" required>
-            </div>
-            <button type="submit">Entrar</button>
-        </form>
-        <div style="margin-top: 1rem;">
-            <a href="#" id="mostrar-cadastro" style="color: var(--dark-moss-green); font-weight: 500; text-decoration: underline; cursor: pointer;">Cadastrar</a>
-        </div>
-        <form id="cadastro-form" style="display:none; margin-top: 1.5rem; width: 100%; flex-direction: column; gap: 1.1rem; align-items: stretch;">
-            <div>
-                <label for="nome-completo">Nome completo</label>
-                <input type="text" id="nome-completo" name="nome-completo" required>
-            </div>
-            <div>
-                <label for="email-cadastro">E-mail</label>
-                <input type="email" id="email-cadastro" name="email-cadastro" required>
-            </div>
-            <div>
-                <label for="telefone-cadastro">Telefone (opcional)</label>
-                <input type="tel" id="telefone-cadastro" name="telefone-cadastro" placeholder="(00) 00000-0000">
-            </div>
-            <div>
-                <label for="novo-usuario">Nome de usuário</label>
-                <input type="text" id="novo-usuario" name="novo-usuario" minlength="3" maxlength="30" required>
-            </div>
-            <div>
-                <label for="nova-senha">Senha</label>
-                <input type="password" id="nova-senha" name="nova-senha" minlength="6" required>
-            </div>
-            <div>
-                <label for="confirmar-senha">Confirmar senha</label>
-                <input type="password" id="confirmar-senha" name="confirmar-senha" minlength="6" required>
-            </div>
-            <div>
-                <label for="renda-base">Renda mensal base</label>
-                <input type="number" step="0.01" min="0" id="renda-base" name="renda-base" placeholder="0,00">
-            </div>
-            <div>
-                <label for="inicio-mes">Dia de início do ciclo financeiro</label>
-                <input type="number" id="inicio-mes" name="inicio-mes" min="1" max="31" value="1">
-            </div>
-            <div>
-                <label for="tema-preferido">Tema preferido</label>
-                <select id="tema-preferido" name="tema-preferido">
-                    <option value="light">Claro</option>
-                    <option value="dark">Escuro</option>
-                </select>
-            </div>
-            <button type="submit">Cadastrar</button>
-            <button type="button" id="voltar-login" style="margin-top:0.5rem; background: var(--ash-gray); color: var(--dark-moss-green);">Voltar para login</button>
-        </form>
+<body class="login-body">
+    <div class="login-atmosphere" aria-hidden="true">
+        <span class="orb orb-1"></span>
+        <span class="orb orb-2"></span>
+        <span class="orb orb-3"></span>
+        <span class="grid-pattern"></span>
     </div>
+
+    <main class="login-shell">
+        <div class="login-card" role="presentation">
+            <section class="card-illustration" aria-labelledby="login-hero-title">
+                <div class="brand-pill" aria-label="Controlada">
+                    <img src="assets/images/logo.png" alt="Logo da Controlada" class="logo-pill-img">
+                </div>
+                <h1 id="login-hero-title">Controle suas finanças com leveza</h1>
+                <p class="hero-subtitle">Transforme números em decisões inteligentes com uma experiência moderna e envolvente como a do painel principal.</p>
+
+                <div class="hero-highlights" role="list">
+                    <article class="highlight-card" role="listitem">
+                        <span class="highlight-icon" aria-hidden="true">📊</span>
+                        <div>
+                            <h2>Dashboard vibrante</h2>
+                            <p>Visualize seus gastos, metas e sobras do mês em cards cheios de energia.</p>
+                        </div>
+                    </article>
+                    <article class="highlight-card" role="listitem">
+                        <span class="highlight-icon" aria-hidden="true">⚡</span>
+                        <div>
+                            <h2>Fluxo inteligente</h2>
+                            <p>Cadastre-se em minutos e mantenha seus dados sincronizados em qualquer dispositivo.</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="hero-metrics" aria-label="Indicadores do app">
+                    <div class="metric-chip">
+                        <span class="metric-icon" aria-hidden="true">💰</span>
+                        Insights financeiros em tempo real
+                    </div>
+                    <div class="metric-chip">
+                        <span class="metric-icon" aria-hidden="true">🛡️</span>
+                        Segurança e privacidade garantidas
+                    </div>
+                </div>
+            </section>
+
+            <section class="card-form" aria-labelledby="login-title">
+                <header class="form-header">
+                    <span class="form-badge">Acesso seguro</span>
+                    <h2 id="login-title">Entre na sua conta</h2>
+                    <p>Continue a acompanhar seu orçamento personalizado com toda a elegância do Controlada.</p>
+                </header>
+
+                <form id="login-form" class="auth-form" novalidate>
+                    <div class="form-group">
+                        <label for="usuario">Usuário</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">👤</span>
+                            <input type="text" id="usuario" name="usuario" placeholder="Digite seu usuário" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="senha">Senha</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">🔒</span>
+                            <input type="password" id="senha" name="senha" placeholder="Informe sua senha" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="primary-btn">Entrar</button>
+                </form>
+
+                <p class="toggle-info">Não tem uma conta? <a href="#" id="mostrar-cadastro" class="toggle-link">Cadastre-se gratuitamente</a></p>
+
+                <form id="cadastro-form" class="auth-form" style="display:none;" novalidate>
+                    <div class="form-group">
+                        <label for="nome-completo">Nome completo</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">🧑‍💼</span>
+                            <input type="text" id="nome-completo" name="nome-completo" placeholder="Seu nome e sobrenome" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="email-cadastro">E-mail</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">✉️</span>
+                            <input type="email" id="email-cadastro" name="email-cadastro" placeholder="nome@email.com" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="telefone-cadastro">Telefone (opcional)</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">📱</span>
+                            <input type="tel" id="telefone-cadastro" name="telefone-cadastro" placeholder="(00) 00000-0000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="novo-usuario">Nome de usuário</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">🏷️</span>
+                            <input type="text" id="novo-usuario" name="novo-usuario" minlength="3" maxlength="30" placeholder="Crie um usuário" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="nova-senha">Senha</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">🔑</span>
+                            <input type="password" id="nova-senha" name="nova-senha" minlength="6" placeholder="Mínimo de 6 caracteres" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmar-senha">Confirmar senha</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">✅</span>
+                            <input type="password" id="confirmar-senha" name="confirmar-senha" minlength="6" placeholder="Repita sua senha" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="renda-base">Renda mensal base</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">💵</span>
+                            <input type="number" step="0.01" min="0" id="renda-base" name="renda-base" placeholder="0,00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="inicio-mes">Dia de início do ciclo financeiro</label>
+                        <div class="input-wrapper">
+                            <span class="input-icon" aria-hidden="true">📅</span>
+                            <input type="number" id="inicio-mes" name="inicio-mes" min="1" max="31" value="1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="tema-preferido">Tema preferido</label>
+                        <div class="input-wrapper select-wrapper">
+                            <span class="input-icon" aria-hidden="true">🌓</span>
+                            <select id="tema-preferido" name="tema-preferido">
+                                <option value="light">Claro</option>
+                                <option value="dark">Escuro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="primary-btn">Cadastrar</button>
+                    <button type="button" id="voltar-login" class="ghost-btn">Voltar para login</button>
+                </form>
+            </section>
+        </div>
+    </main>
+
     <script src="assets/js/storage.js"></script>
     <script src="assets/js/login.js"></script>
 </body>
