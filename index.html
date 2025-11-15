@@ -146,14 +146,20 @@
                                     <div class="input-row">
                                         <div class="input-group amount">
                                             <div class="input-icon">💵</div>
-                                            <div class="input-content">
+                                        <div class="input-content">
                                                 <label for="valor">Valor</label>
-                                                <input type="number" id="valor" name="valor" step="0.01" min="0" required
+                                                <input type="text" id="valor" name="valor" required
                                                        placeholder="0,00"
-                                                       class="modern-input amount-input" inputmode="decimal"
+                                                       class="modern-input amount-input"
+                                                       inputmode="decimal"
                                                        autocomplete="transaction-amount" aria-describedby="valor-hint">
                                                 <div class="input-border"></div>
                                                 <span class="currency-symbol">R$</span>
+                                                <!-- Acesso mobile: botões rápidos para preencher valores frequentes -->
+                                                <div class="mobile-quick-value-container" data-target-input="valor" aria-label="Sugestões rápidas de valor">
+                                                    <button type="button" class="mobile-quick-value-btn" data-quick-value="50" data-target-input="valor" aria-label="Adicionar cinquenta reais">+ R$ 50</button>
+                                                    <button type="button" class="mobile-quick-value-btn" data-quick-value="100" data-target-input="valor" aria-label="Adicionar cem reais">+ R$ 100</button>
+                                                </div>
                                             </div>
                                             <p class="field-hint" id="valor-hint">Informe o valor em reais, utilizando vírgula ou ponto para separar os centavos.</p>
                                         </div>
@@ -630,16 +636,16 @@
     <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
 
     <div id="modal-editar-renda" class="modal-editar-renda" style="display:none;">
-        <div class="modal-editar-renda-content">
+        <div class="modal-editar-renda-content" role="dialog" aria-modal="true" aria-labelledby="modal-renda-title">
             <span class="modal-editar-renda-close" id="modal-editar-renda-close">&times;</span>
-            <h3>Configurar renda e benefícios</h3>
+            <h3 id="modal-renda-title">Configurar renda e benefícios</h3>
             <div class="modal-renda-body">
                 <section class="modal-renda-section">
                     <h4>Renda base</h4>
                     <p class="modal-renda-description">Defina aqui sua renda fixa mensal. Esse valor será somado aos benefícios ativos.</p>
                     <form id="form-modal-renda" class="modal-renda-form">
                         <label for="input-modal-renda">Renda mensal fixa (R$)</label>
-                        <input type="number" id="input-modal-renda" name="input-modal-renda" step="0.01" min="0" required>
+                        <input type="text" id="input-modal-renda" name="input-modal-renda" inputmode="decimal" required placeholder="0,00">
                         <button type="submit" class="modal-editar-renda-salvar">Salvar renda</button>
                     </form>
                 </section>
@@ -671,7 +677,7 @@
                             </div>
                             <div class="form-beneficio-field">
                                 <label for="beneficio-saldo">Saldo atual (R$)</label>
-                                <input type="number" id="beneficio-saldo" name="beneficio-saldo" step="0.01" min="0" required>
+                                <input type="text" id="beneficio-saldo" name="beneficio-saldo" inputmode="decimal" required placeholder="0,00">
                             </div>
                         </div>
                         <button type="submit" class="modal-beneficio-adicionar">Adicionar cartão</button>
