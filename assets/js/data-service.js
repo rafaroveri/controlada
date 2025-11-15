@@ -43,6 +43,18 @@
     };
 
     const constantsAPI = constants || { DEFAULT_PAYMENT_ICON: '💰' };
+    const gastoStatus = {
+        EFETIVADO: 'efetivado',
+        PENDENTE: 'pendente'
+    };
+
+    function isGastoEfetivado(gasto){
+        return !gasto || gasto.status !== gastoStatus.PENDENTE;
+    }
+
+    function filtrarGastosEfetivados(lista){
+        return (lista || []).filter(isGastoEfetivado);
+    }
 
     function formatCurrency(value){
         const numero = typeof value === 'number' ? value : parseFloat(value || 0);
@@ -157,6 +169,10 @@
         lista.forEach(gasto => {
             if(!gasto.categoriaId && gasto.categoria && mapaCategoria.has(gasto.categoria)){
                 gasto.categoriaId = mapaCategoria.get(gasto.categoria);
+                atualizado = true;
+            }
+            if(!gasto.status){
+                gasto.status = gastoStatus.EFETIVADO;
                 atualizado = true;
             }
         });
@@ -294,12 +310,14 @@
             console.warn('getTotalGastosMes: mesAno inválido:', mesAno);
             return 0;
         }
-        return getGastosDoMesAno(mesAno).reduce((soma, gasto) => soma + parseFloat(gasto.valor || 0), 0);
+        return filtrarGastosEfetivados(getGastosDoMesAno(mesAno))
+            .reduce((soma, gasto) => soma + parseFloat(gasto.valor || 0), 0);
     }
 
     function getTotalGastosMesAtual(){
         const cicloAtual = getCurrentCycleKeyStr();
-        return getGastosDoMesAno(cicloAtual).reduce((soma, gasto) => soma + parseFloat(gasto.valor || 0), 0);
+        return filtrarGastosEfetivados(getGastosDoMesAno(cicloAtual))
+            .reduce((soma, gasto) => soma + parseFloat(gasto.valor || 0), 0);
     }
 
     function calcularProgressoMetas(){
@@ -313,7 +331,8 @@
     function getGastosHoje(){
         const hoje = new Date().toISOString().slice(0, 10);
         const mesAtual = getCurrentCycleKeyStr();
-        return getGastosDoMesAno(mesAtual).filter(gasto => gasto.data === hoje);
+        return filtrarGastosEfetivados(getGastosDoMesAno(mesAtual))
+            .filter(gasto => gasto.data === hoje);
     }
 
     function getTotalGastosHoje(){
@@ -368,7 +387,7 @@
 
     function getDistribuicaoMetodosPagamento(mesAno){
         const mesAtual = mesAno || getCurrentCycleKeyStr();
-        const gastos = getGastosDoMesAno(mesAtual);
+        const gastos = filtrarGastosEfetivados(getGastosDoMesAno(mesAtual));
         const distribuicao = {};
         let total = 0;
 
@@ -389,7 +408,7 @@
 
     function getMaiorGasto(){
         const mesAtual = getCurrentCycleKeyStr();
-        const gastos = getGastosDoMesAno(mesAtual);
+        const gastos = filtrarGastosEfetivados(getGastosDoMesAno(mesAtual));
         if(gastos.length === 0) return { valor: 0, descricao: '-', categoria: '-' };
         const maior = gastos.reduce((maiorAtual, gasto) => (
             parseFloat(gasto.valor || 0) > parseFloat(maiorAtual.valor || 0) ? gasto : maiorAtual
@@ -403,7 +422,7 @@
 
     function getCategoriaDominante(){
         const mesAtual = getCurrentCycleKeyStr();
-        const gastos = getGastosDoMesAno(mesAtual);
+        const gastos = filtrarGastosEfetivados(getGastosDoMesAno(mesAtual));
         if(gastos.length === 0) return { categoria: '-', valor: 0, percentual: 0 };
         const categorias = {};
         let totalGeral = 0;
@@ -421,7 +440,7 @@
 
     function getProjecaoMensal(){
         const mesAtual = getCurrentCycleKeyStr();
-        const gastos = getGastosDoMesAno(mesAtual);
+        const gastos = filtrarGastosEfetivados(getGastosDoMesAno(mesAtual));
         if(gastos.length === 0) return 0;
         const hoje = new Date();
         const inicioMes = getInicioMes();
@@ -443,7 +462,7 @@
 
     function getUltimosGastosImportantes(){
         const mesAtual = getCurrentCycleKeyStr();
-        const gastos = getGastosDoMesAno(mesAtual);
+        const gastos = filtrarGastosEfetivados(getGastosDoMesAno(mesAtual));
         if(gastos.length === 0) return [];
         const total = gastos.reduce((soma, gasto) => soma + parseFloat(gasto.valor || 0), 0);
         const media = total / gastos.length;

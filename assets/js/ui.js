@@ -137,20 +137,110 @@
     const inputBeneficioSaldo = document.getElementById('beneficio-saldo');
     const listaBeneficios = document.getElementById('lista-beneficios');
     const selectMetodo = document.getElementById('metodo-pagamento');
+    const parcelasPeriodicidadeSelect = document.getElementById('parcelas-periodicidade');
     const searchHistorico = document.getElementById('search-historico');
     const filterCategoriaHistorico = document.getElementById('filter-categoria-historico');
     const filterMetodoHistorico = document.getElementById('filter-metodo-historico');
 
     // Controle de filtros do histórico (precisa existir antes dos handlers que os utilizam)
-    let currentView = 'table';
+    const STATUS_PENDENTE = 'pendente';
+    const STATUS_EFETIVADO = 'efetivado';
+    const HISTORICO_PREFS_KEY = 'historico_filtros_preferidos';
+    const historicoPrefsDefaults = {
+        busca: '',
+        categoria: '',
+        metodo: '',
+        view: 'table',
+        // Mantém o critério de ordenação mesmo que ainda exista apenas a opção padrão
+        ordenacao: 'recentes'
+    };
+    let historicoPrefs = carregarHistoricoPreferencias();
+    let currentView = historicoPrefs.view || 'table';
     let gastosOriginais = [];
     let gastosFiltrados = [];
     let recorrentesPendentes = [];
+    restaurarFiltrosNaInterface({ skipCategoria: true });
 
     function resolverCategoriaId(categoriaValor, categoriaIdExistente){
         if(categoriaIdExistente) return categoriaIdExistente;
         const categoriaEncontrada = dataService.getTodasCategorias().find(cat => cat.valor === categoriaValor);
         return categoriaEncontrada ? categoriaEncontrada.id : null;
+    }
+
+    function carregarHistoricoPreferencias(){
+        try {
+            const salvo = window.localStorage ? window.localStorage.getItem(HISTORICO_PREFS_KEY) : null;
+            const parsed = salvo ? JSON.parse(salvo) : {};
+            return Object.assign({}, historicoPrefsDefaults, parsed || {});
+        } catch (error) {
+            console.warn('Não foi possível carregar preferências do histórico.', error);
+            return Object.assign({}, historicoPrefsDefaults);
+        }
+    }
+
+    function salvarHistoricoPreferencias(atualizacoes = {}){
+        historicoPrefs = Object.assign({}, historicoPrefs, atualizacoes);
+        try {
+            if(window.localStorage){
+                window.localStorage.setItem(HISTORICO_PREFS_KEY, JSON.stringify(historicoPrefs));
+            }
+        } catch (error) {
+            console.warn('Não foi possível salvar preferências do histórico.', error);
+        }
+    }
+
+    function restaurarFiltrosNaInterface({ skipCategoria } = {}){
+        if(searchHistorico){
+            searchHistorico.value = historicoPrefs.busca || '';
+        }
+        if(filterMetodoHistorico){
+            filterMetodoHistorico.value = historicoPrefs.metodo || '';
+        }
+        if(!skipCategoria && filterCategoriaHistorico){
+            filterCategoriaHistorico.value = historicoPrefs.categoria || '';
+        }
+    }
+
+    function formatCycleKeyLocal(year, month){
+        return `${year}-${String(month).padStart(2, '0')}`;
+    }
+
+    function obterCicloLiberacao(gasto){
+        if(gasto.cicloLiberacao){
+            return gasto.cicloLiberacao;
+        }
+        const { year, month } = dataService.getCycleKeyForDate(gasto.data);
+        return formatCycleKeyLocal(year, month);
+    }
+
+    function podeConfirmarParcela(gasto, cicloSelecionado){
+        if(!gasto || gasto.status !== STATUS_PENDENTE){
+            return false;
+        }
+        const cicloLiberacao = obterCicloLiberacao(gasto);
+        const cicloComparacao = cicloSelecionado || getMesAnoSelecionado();
+        return cicloLiberacao.localeCompare(cicloComparacao) <= 0;
+    }
+
+    function ehParcela(gasto){
+        return Number(gasto && gasto.parcelaTotal) > 1;
+    }
+
+    function getInstallmentBadge(gasto){
+        if(!ehParcela(gasto)){
+            return '';
+        }
+        return `<span class="installment-chip" title="Parcela">${gasto.parcelaNumero || 1}/${gasto.parcelaTotal}</span>`;
+    }
+
+    function getStatusBadge(gasto, cicloSelecionado){
+        if(gasto.status === STATUS_PENDENTE){
+            const confirmavel = podeConfirmarParcela(gasto, cicloSelecionado);
+            const classe = confirmavel ? 'status-chip--pendente' : 'status-chip--agendado';
+            const texto = confirmavel ? 'Pendente' : 'Futuro';
+            return `<span class="status-chip ${classe}">${texto}</span>`;
+        }
+        return '';
     }
 
     function obterRendaDetalhada(){
@@ -871,6 +961,61 @@
     const freqRecorrente = document.getElementById('freq-recorrente');
     const freqGroup = document.getElementById('freq-recorrente-group');
 
+    function gerarId(prefixo){
+        if(window.crypto && window.crypto.randomUUID){
+            return window.crypto.randomUUID();
+        }
+        return `${prefixo}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    }
+
+    // Cria os registros que representam cada parcela. O primeiro lançamento é
+    // efetivado imediatamente e os demais ficam com status "pendente",
+    // guardando o ciclo financeiro em que poderão ser confirmados.
+    // Os campos parcelaNumero/parcelaTotal e parcelamentoId mantêm o vínculo
+    // entre as parcelas para facilitar filtros e exibição.
+    function criarParcelamentos({ descricao, valorTotal, dataInicial, parcelas, periodicidade, categoria, categoriaId, metodoPagamento }){
+        const registros = [];
+        if(!parcelas || parcelas < 1){
+            return registros;
+        }
+        const parcelamentoId = parcelas > 1 ? gerarId('parc') : null;
+        const valorParcelaBase = Math.round((valorTotal / parcelas) * 100) / 100;
+        let valorRestante = valorTotal;
+        for(let i = 0; i < parcelas; i += 1){
+            const dataParcela = new Date(dataInicial);
+            if(periodicidade === 'mensal'){
+                dataParcela.setMonth(dataParcela.getMonth() + i);
+            }
+            const isoDate = dataParcela.toISOString().slice(0, 10);
+            const valorAtual = (i === parcelas - 1)
+                ? Math.round(valorRestante * 100) / 100
+                : valorParcelaBase;
+            valorRestante -= valorAtual;
+            const descricaoParcela = parcelas > 1 ? `${descricao} (${i + 1}/${parcelas})` : descricao;
+            const { year, month } = dataService.getCycleKeyForDate(isoDate);
+            const cicloLiberacao = formatCycleKeyLocal(year, month);
+            const registro = {
+                id: gerarId('gasto'),
+                descricao: descricaoParcela,
+                valor: valorAtual,
+                data: isoDate,
+                categoria,
+                categoriaId,
+                metodoPagamento,
+                status: i === 0 ? STATUS_EFETIVADO : STATUS_PENDENTE,
+                cicloLiberacao
+            };
+            if(parcelas > 1){
+                registro.parcelaNumero = i + 1;
+                registro.parcelaTotal = parcelas;
+                registro.parcelamentoId = parcelamentoId;
+                registro.periodicidade = periodicidade;
+            }
+            registros.push(registro);
+        }
+        return registros;
+    }
+
     // Função para obter todos os meses/anos presentes nos gastos
     // Função para preencher o select de meses/anos
     function preencherSelectMesAno() {
@@ -1256,6 +1401,26 @@
         }
     }
 
+    function confirmarParcelaDoMes(mesAno, idx){
+        const listaMes = dataService.getGastosDoMesAno(mesAno);
+        if(!listaMes || idx === null || idx === undefined || idx < 0 || idx >= listaMes.length){
+            return;
+        }
+        const gasto = listaMes[idx];
+        if(!gasto || gasto.status !== STATUS_PENDENTE){
+            return;
+        }
+        const todos = dataService.getGastos();
+        const indexGlobal = todos.indexOf(gasto);
+        if(indexGlobal === -1){
+            return;
+        }
+        todos[indexGlobal].status = STATUS_EFETIVADO;
+        todos[indexGlobal].confirmadoEm = new Date().toISOString();
+        dataService.setGastos(todos);
+        atualizarTudoPorMes();
+    }
+
     // Eventos do select
     if (selectMesAno) {
         selectMesAno.addEventListener('change', () => {
@@ -1278,7 +1443,7 @@
             const descricao = document.getElementById('descricao').value.trim();
             const valorTotal = parseFloat(document.getElementById('valor').value);
             const data = document.getElementById('data').value;
-            const parcelas = parseInt(document.getElementById('parcelas').value) || 1;
+            const parcelas = parseInt(document.getElementById('parcelas').value, 10) || 1;
             const categoriaSelect = document.getElementById('categoria');
             const categoria = categoriaSelect.value;
             const categoriaOption = categoriaSelect.options[categoriaSelect.selectedIndex];
@@ -1286,30 +1451,23 @@
             const metodoSelecionado = document.getElementById('metodo-pagamento').value;
             const outroMetodo = document.getElementById('outro-metodo').value.trim();
             const metodoPagamento = metodoSelecionado === 'Outro' ? (outroMetodo || 'Outro') : metodoSelecionado;
+            const periodicidadeParcelas = parcelasPeriodicidadeSelect ? parcelasPeriodicidadeSelect.value || 'mensal' : 'mensal';
             const ehRecorrente = chkRecorrente && chkRecorrente.checked;
             const frequencia = freqRecorrente ? freqRecorrente.value : 'mensal';
 
             if (!descricao || isNaN(valorTotal) || !data || isNaN(parcelas) || parcelas < 1 || !categoria || !metodoPagamento) return;
             const lista = dataService.getGastos();
-            // Corrigido: valor de cada parcela
-            const valorParcela = Math.round((valorTotal / parcelas) * 100) / 100;
-            let valorRestante = valorTotal;
-            for (let i = 0; i < parcelas; i++) {
-                const dataParcela = new Date(data);
-                dataParcela.setMonth(dataParcela.getMonth() + i);
-                // Ajuste para garantir que a soma das parcelas seja igual ao valor total
-                let valorAtual = (i === parcelas - 1) ? Math.round((valorRestante) * 100) / 100 : valorParcela;
-                valorRestante -= valorAtual;
-                const descParcela = parcelas > 1 ? `${descricao} (${i+1}/${parcelas})` : descricao;
-                lista.push({
-                    descricao: descParcela,
-                    valor: valorAtual,
-                    data: dataParcela.toISOString().slice(0,10),
-                    categoria,
-                    categoriaId,
-                    metodoPagamento
-                });
-            }
+            const registrosParcelados = criarParcelamentos({
+                descricao,
+                valorTotal,
+                dataInicial: data,
+                parcelas,
+                periodicidade: periodicidadeParcelas,
+                categoria,
+                categoriaId,
+                metodoPagamento
+            });
+            registrosParcelados.forEach(registro => lista.push(registro));
             dataService.setGastos(lista);
 
             if (ehRecorrente) {
@@ -1352,6 +1510,9 @@
             
             formGasto.reset();
             document.getElementById('parcelas').value = 1;
+            if(parcelasPeriodicidadeSelect){
+                parcelasPeriodicidadeSelect.value = 'mensal';
+            }
         });
     }
 
@@ -1760,7 +1921,7 @@
         const mesAno = getMesAnoSelecionado();
         gastosOriginais = dataService.getGastosDoMesAno(mesAno);
 
-        let gastosFiltrados = [...gastosOriginais];
+        gastosFiltrados = [...gastosOriginais];
 
         // Filtro de busca por descrição
         const textoBusca = (searchHistorico ? searchHistorico.value : '').toLowerCase().trim();
@@ -1786,19 +1947,21 @@
             );
         }
         
+        const cicloAtual = mesAno;
+
         // Atualizar visualização
         if (currentView === 'table') {
-            atualizarTabelaFiltrada(gastosFiltrados);
+            atualizarTabelaFiltrada(gastosFiltrados, cicloAtual);
         } else {
-            atualizarCardsFiltrados(gastosFiltrados);
+            atualizarCardsFiltrados(gastosFiltrados, cicloAtual);
         }
-        
+
         // Atualizar estatísticas
         atualizarEstatisticasHistorico(gastosFiltrados);
     }
     
     // Função para atualizar tabela com dados filtrados
-    function atualizarTabelaFiltrada(gastos) {
+    function atualizarTabelaFiltrada(gastos, cicloAtual) {
         const tbody = document.querySelector('#historico-gastos tbody');
         const emptyState = document.getElementById('empty-state-table');
         
@@ -1815,33 +1978,42 @@
         
         // Exibe em ordem reversa (mais recentes primeiro)
         const listaReversa = gastos.slice().reverse();
-        listaReversa.forEach((g, displayIdx) => {
+        listaReversa.forEach((g) => {
             // Formatar data para dd/mm/YYYY
             const [ano, mes, dia] = g.data.split('-');
             const dataFormatada = `${dia}/${mes}/${ano}`;
             const cor = categoriaCores[g.categoria] || categoriaCores['outros'];
             const quadrado = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${cor};margin-right:8px;vertical-align:middle;border:2px solid rgba(255,255,255,0.8);box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>`;
-            
+
             // Separar descrição e categoria
-            const descricao = `<div class="desc-cell">${g.descricao}</div>`;
+            const badgeHtml = [getInstallmentBadge(g), getStatusBadge(g, cicloAtual)].filter(Boolean).join(' ');
+            const descricao = `<div class="desc-cell">${g.descricao} ${badgeHtml}</div>`;
             const categoria = `<div class="categoria-cell">${quadrado}<span>${g.categoria}</span></div>`;
-            
+
         // Adicionar ícones aos métodos de pagamento
         const iconeMetodo = paymentIcons[g.metodoPagamento] || defaultPaymentIcon;
             const metodo = `<div class="metodo-cell">${iconeMetodo} ${g.metodoPagamento || 'Não informado'}</div>`;
-            
+
             // Encontrar índice original para exclusão
-            const originalIdx = gastosOriginais.findIndex(original => 
-                original.descricao === g.descricao && 
-                original.valor === g.valor && 
-                original.data === g.data
-            );
-            
+            let originalIdx = gastosOriginais.indexOf(g);
+            if(originalIdx === -1){
+                originalIdx = gastosOriginais.findIndex(original =>
+                    original.descricao === g.descricao &&
+                    original.valor === g.valor &&
+                    original.data === g.data
+                );
+            }
+
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td data-label="Descrição">${descricao}</td><td data-label="Valor" class="valor-cell">${formatCurrency(g.valor)}</td><td data-label="Categoria">${categoria}</td><td data-label="Método">${metodo}</td><td data-label="Data" class="data-cell">📅 ${dataFormatada}</td><td data-label="Ações" class="action-cell"><button class='btn-delete-modern' title='Excluir gasto' aria-label='Excluir gasto' data-idx='${originalIdx}'>🗑️</button></td>`;
+            const actions = [];
+            if(podeConfirmarParcela(g, cicloAtual)){
+                actions.push(`<button class='btn-confirm-parcela' title='Confirmar parcela pendente' data-idx='${originalIdx}'>✔️</button>`);
+            }
+            actions.push(`<button class='btn-delete-modern' title='Excluir gasto' aria-label='Excluir gasto' data-idx='${originalIdx}'>🗑️</button>`);
+            tr.innerHTML = `<td data-label="Descrição">${descricao}</td><td data-label="Valor" class="valor-cell">${formatCurrency(g.valor)}</td><td data-label="Categoria">${categoria}</td><td data-label="Método">${metodo}</td><td data-label="Data" class="data-cell">📅 ${dataFormatada}</td><td data-label="Ações" class="action-cell">${actions.join(' ')}</td>`;
             tbody.appendChild(tr);
         });
-        
+
         // Adiciona evento aos botões de exclusão
         document.querySelectorAll('.btn-delete-modern').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -1850,10 +2022,17 @@
                 abrirModalConfirmarExclusao(mesAno, idx);
             });
         });
+        document.querySelectorAll('.btn-confirm-parcela').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const idx = parseInt(this.getAttribute('data-idx'), 10);
+                const mesAno = getMesAnoSelecionado();
+                confirmarParcelaDoMes(mesAno, idx);
+            });
+        });
     }
     
     // Função para atualizar cards com dados filtrados
-    function atualizarCardsFiltrados(gastos) {
+    function atualizarCardsFiltrados(gastos, cicloAtual) {
         const cardsContainer = document.getElementById('gastos-cards-container');
         const emptyState = document.getElementById('empty-state-cards');
         
@@ -1870,24 +2049,33 @@
         
         // Exibe em ordem reversa (mais recentes primeiro)
         const listaReversa = gastos.slice().reverse();
-        listaReversa.forEach((g, displayIdx) => {
+        listaReversa.forEach((g) => {
             // Formatar data
             const [ano, mes, dia] = g.data.split('-');
             const dataFormatada = `${dia}/${mes}/${ano}`;
             const cor = categoriaCores[g.categoria] || categoriaCores['outros'];
-            
+
         // Ícones dos métodos
         const iconeMetodo = paymentIcons[g.metodoPagamento] || defaultPaymentIcon;
-            
+
             // Encontrar índice original para exclusão
-            const originalIdx = gastosOriginais.findIndex(original => 
-                original.descricao === g.descricao && 
-                original.valor === g.valor && 
-                original.data === g.data
-            );
-            
+            let originalIdx = gastosOriginais.indexOf(g);
+            if(originalIdx === -1){
+                originalIdx = gastosOriginais.findIndex(original =>
+                    original.descricao === g.descricao &&
+                    original.valor === g.valor &&
+                    original.data === g.data
+                );
+            }
+
             const card = document.createElement('div');
             card.className = 'gasto-card';
+            const badgeHtml = [getInstallmentBadge(g), getStatusBadge(g, cicloAtual)].filter(Boolean).join(' ');
+            const actions = [];
+            if(podeConfirmarParcela(g, cicloAtual)){
+                actions.push(`<button class='btn-confirm-parcela' title='Confirmar parcela pendente' data-idx='${originalIdx}'>✔️</button>`);
+            }
+            actions.push(`<button class='btn-delete-modern' title='Excluir gasto' data-idx='${originalIdx}'>🗑️</button>`);
             card.innerHTML = `
                 <div class="card-header">
                     <div class="card-categoria" style="background-color: ${cor}20; border-color: ${cor}">
@@ -1895,7 +2083,7 @@
                     </div>
                     <div class="card-valor">${formatCurrency(g.valor)}</div>
                 </div>
-                <div class="card-descricao">${g.descricao}</div>
+                <div class="card-descricao">${g.descricao} ${badgeHtml}</div>
                 <div class="card-details">
                     <div class="card-detail">
                         ${iconeMetodo} ${g.metodoPagamento || 'Não informado'}
@@ -1905,18 +2093,25 @@
                     </div>
                 </div>
                 <div class="card-actions">
-                    <button class='btn-delete-modern' title='Excluir gasto' data-idx='${originalIdx}'>🗑️</button>
+                    ${actions.join(' ')}
                 </div>
             `;
             cardsContainer.appendChild(card);
         });
-        
+
         // Adiciona evento aos botões de exclusão
         document.querySelectorAll('.btn-delete-modern').forEach(btn => {
             btn.addEventListener('click', function() {
                 const idx = parseInt(this.getAttribute('data-idx'));
                 const mesAno = getMesAnoSelecionado();
                 abrirModalConfirmarExclusao(mesAno, idx);
+            });
+        });
+        document.querySelectorAll('.btn-confirm-parcela').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const idx = parseInt(this.getAttribute('data-idx'), 10);
+                const mesAno = getMesAnoSelecionado();
+                confirmarParcelaDoMes(mesAno, idx);
             });
         });
     }
@@ -1926,26 +2121,38 @@
         const totalElement = document.getElementById('total-gastos-historico');
         const quantidadeElement = document.getElementById('quantidade-gastos-historico');
         const mediaElement = document.getElementById('media-gastos-historico');
-        
+
         if (!totalElement || !quantidadeElement || !mediaElement) return;
-        
-        const total = gastos.reduce((sum, gasto) => sum + parseFloat(gasto.valor), 0);
-        const quantidade = gastos.length;
+
+        const confirmados = gastos.filter(gasto => gasto.status !== STATUS_PENDENTE);
+        const pendentes = gastos.length - confirmados.length;
+        const total = confirmados.reduce((sum, gasto) => sum + parseFloat(gasto.valor), 0);
+        const quantidade = confirmados.length;
         const media = quantidade > 0 ? total / quantidade : 0;
-        
+        const pendentesTexto = pendentes > 0
+            ? ` (+${pendentes} pendente${pendentes > 1 ? 's' : ''})`
+            : '';
+
         totalElement.textContent = formatCurrency(total);
-        quantidadeElement.textContent = `${quantidade} gasto${quantidade !== 1 ? 's' : ''}`;
+        quantidadeElement.textContent = `${quantidade} gasto${quantidade !== 1 ? 's' : ''} confirmados${pendentesTexto}`;
         mediaElement.textContent = formatCurrency(media);
     }
     
     // Função para popular filtro de categorias
     function popularFiltroCategoria() {
         if (!filterCategoriaHistorico) return;
-        
+
         // Limpar opções existentes (exceto a primeira)
         const primeiraOpcao = filterCategoriaHistorico.querySelector('option[value=""]');
         filterCategoriaHistorico.innerHTML = '';
-        filterCategoriaHistorico.appendChild(primeiraOpcao);
+        if(primeiraOpcao){
+            filterCategoriaHistorico.appendChild(primeiraOpcao);
+        } else {
+            const optionTodos = document.createElement('option');
+            optionTodos.value = '';
+            optionTodos.textContent = '🏷️ Todas as categorias';
+            filterCategoriaHistorico.appendChild(optionTodos);
+        }
         
         // Adicionar categorias disponíveis
         const categorias = getTodasCategorias();
@@ -1958,7 +2165,8 @@
     }
     
     // Função para alternar visualização
-    function alternarVisualizacao(novaView) {
+    function alternarVisualizacao(novaView, options = {}) {
+        const { skipPersist = false, skipFilters = false } = options;
         currentView = novaView;
         
         // Atualizar botões
@@ -1979,20 +2187,35 @@
         }
         
         // Reaplicar filtros
-        aplicarFiltros();
+        if(!skipFilters){
+            aplicarFiltros();
+        }
+
+        if(!skipPersist){
+            salvarHistoricoPreferencias({ view: novaView });
+        }
     }
     
     // Event Listeners dos filtros
     if (searchHistorico) {
-        searchHistorico.addEventListener('input', aplicarFiltros);
+        searchHistorico.addEventListener('input', () => {
+            salvarHistoricoPreferencias({ busca: searchHistorico.value });
+            aplicarFiltros();
+        });
     }
-    
+
     if (filterCategoriaHistorico) {
-        filterCategoriaHistorico.addEventListener('change', aplicarFiltros);
+        filterCategoriaHistorico.addEventListener('change', () => {
+            salvarHistoricoPreferencias({ categoria: filterCategoriaHistorico.value });
+            aplicarFiltros();
+        });
     }
-    
+
     if (filterMetodoHistorico) {
-        filterMetodoHistorico.addEventListener('change', aplicarFiltros);
+        filterMetodoHistorico.addEventListener('change', () => {
+            salvarHistoricoPreferencias({ metodo: filterMetodoHistorico.value });
+            aplicarFiltros();
+        });
     }
     
     // Event Listeners do toggle de visualização
@@ -2004,6 +2227,8 @@
             }
         });
     });
+
+    alternarVisualizacao(currentView, { skipPersist: true, skipFilters: true });
     
     // Modificar a função original para usar os filtros
     const atualizarHistoricoOriginal = atualizarHistoricoGastos;
@@ -2013,12 +2238,10 @@
         
         // Popular filtro de categoria
         popularFiltroCategoria();
-        
-        // Limpar filtros
-        if (searchHistorico) searchHistorico.value = '';
-        if (filterCategoriaHistorico) filterCategoriaHistorico.value = '';
-        if (filterMetodoHistorico) filterMetodoHistorico.value = '';
-        
+
+        // Restaurar preferências salvas antes de aplicar filtros
+        restaurarFiltrosNaInterface();
+
         // Aplicar filtros (que vai chamar a renderização)
         aplicarFiltros();
     };
