@@ -51,6 +51,12 @@
             localStorage.setItem(key, JSON.stringify(value));
             persist(key, value);
         },
+        appendToList(key, entry){
+            const listaAtual = StorageUtil.getJSON(key, []);
+            listaAtual.push(entry);
+            StorageUtil.setJSON(key, listaAtual);
+            return listaAtual;
+        },
         remove(key){
             localStorage.removeItem(key);
             persist(key, null);

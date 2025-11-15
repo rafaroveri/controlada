@@ -601,6 +601,21 @@
                             <div id="metas-container"></div>
                             <button type="submit" class="btn-salvar-config">Salvar Metas</button>
                         </form>
+                        <div class="config-extra-grid">
+                            <section class="auditoria-card">
+                                <div class="auditoria-card-header">
+                                    <div>
+                                        <h3>Últimas alterações na renda</h3>
+                                        <p class="auditoria-description">Acompanhe os ajustes realizados na renda base e nos benefícios corporativos.</p>
+                                    </div>
+                                    <button type="button" id="abrir-conciliacao-beneficios" class="btn-conciliacao">
+                                        💳 Conciliação de benefícios
+                                    </button>
+                                </div>
+                                <p id="auditoria-renda-empty" class="auditoria-empty">Nenhuma alteração registrada ainda.</p>
+                                <ul id="lista-auditoria-renda" class="auditoria-list"></ul>
+                            </section>
+                        </div>
                     </div>
                     <!-- Conteúdo de configurações futuramente -->
                 </section>
@@ -716,6 +731,26 @@
             <div id="lista-recorrentes-pendentes" class="modal-recorrentes-lista" aria-live="polite"></div>
             <div class="modal-editar-renda-actions">
                 <button type="button" class="modal-editar-renda-cancelar" id="modal-recorrentes-fechar">Fechar</button>
+            </div>
+        </div>
+    </div>
+    <div id="modal-conciliacao-beneficios" class="modal-editar-renda" style="display:none;">
+        <div class="modal-editar-renda-content modal-conciliacao-content" role="dialog" aria-modal="true" aria-labelledby="modal-conciliacao-titulo">
+            <span class="modal-editar-renda-close" id="modal-conciliacao-close">&times;</span>
+            <h3 id="modal-conciliacao-titulo">Conciliação de benefícios</h3>
+            <p class="modal-renda-description">Relacione os últimos gastos pagos com cartões corporativos e baixe os valores diretamente do saldo de cada benefício.</p>
+            <div class="modal-conciliacao-body">
+                <div class="conciliacao-resumo">
+                    <h4>Benefícios cadastrados</h4>
+                    <div id="conciliacao-beneficios-list" class="conciliacao-beneficios-list"></div>
+                </div>
+                <div class="conciliacao-gastos-wrapper">
+                    <h4>Gastos vinculados</h4>
+                    <div id="conciliacao-gastos-list" class="conciliacao-gastos-list"></div>
+                </div>
+            </div>
+            <div class="modal-editar-renda-actions">
+                <button type="button" class="modal-editar-renda-cancelar" id="modal-conciliacao-fechar">Fechar</button>
             </div>
         </div>
     </div>
