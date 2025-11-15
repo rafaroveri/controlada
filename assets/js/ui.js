@@ -240,32 +240,133 @@
     };
     function init(){
         const authService = window.backendService || window.firebaseService;
+        const authWatchdog = window.authWatchdog;
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const shouldForceRedirect = () => {
+            window.location.href = 'login.html';
+        };
 
-        if(authService && authService.isRemoteAvailable && typeof authService.ensureAuthenticated === 'function'){
+        const enableWatchdog = () => {
+            if(authWatchdog && typeof authWatchdog.setupWatchdog === 'function'){
+                authWatchdog.setupWatchdog({ onExpire: shouldForceRedirect });
+            }
+        };
+
+        const hasRemoteAuth = authService && authService.isRemoteAvailable && typeof authService.ensureAuthenticated === 'function';
+
+        if(hasRemoteAuth){
             authService.ensureAuthenticated()
                 .then(() => {
+                    enableWatchdog();
                     bootInterface(authService);
                 })
                 .catch(() => {
-                    window.location.href = 'login.html';
+                    shouldForceRedirect();
                 });
             return;
         }
 
-        if(isLocalhost && !localStorage.getItem('autenticado')){
-            localStorage.setItem('autenticado', 'true');
+        if(isLocalhost && !(localStorage && localStorage.getItem && localStorage.getItem('autenticado'))){
+            if(authWatchdog && typeof authWatchdog.recordAuth === 'function'){
+                authWatchdog.recordAuth();
+            } else {
+                localStorage.setItem('autenticado', 'true');
+            }
         }
 
-        if(!localStorage.getItem('autenticado')){
-            window.location.href = 'login.html';
+        if(authWatchdog && typeof authWatchdog.ensureFreshSession === 'function'){
+            const stillValid = authWatchdog.ensureFreshSession({ onExpire: shouldForceRedirect });
+            if(!stillValid){
+                return;
+            }
+        } else if(!localStorage.getItem('autenticado')){
+            shouldForceRedirect();
             return;
         }
 
+        enableWatchdog();
         bootInterface(authService);
     }
 
     function bootInterface(authService){
+
+        const syncStatusBadge = document.getElementById('sync-status-badge');
+        const syncStatusText = syncStatusBadge ? syncStatusBadge.querySelector('.sync-status-text') : null;
+
+        function formatSyncLabel(timestamp){
+            if(!timestamp){
+                return null;
+            }
+            const parsed = new Date(timestamp);
+            if(Number.isNaN(parsed.getTime())){
+                return null;
+            }
+            try {
+                return parsed.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            } catch (error) {
+                return parsed.toLocaleString();
+            }
+        }
+
+        function setSyncBadgeMessage(message){
+            if(!syncStatusBadge){
+                return;
+            }
+            const target = syncStatusText || syncStatusBadge;
+            target.textContent = message;
+        }
+
+        function toggleSyncLoading(isLoading){
+            if(!syncStatusBadge){
+                return;
+            }
+            syncStatusBadge.classList.toggle('is-syncing', !!isLoading);
+            syncStatusBadge.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+        }
+
+        function refreshSyncBadgeFromStorage(){
+            if(!syncStatusBadge){
+                return;
+            }
+            const stored = localStorage.getItem('last_sync_at');
+            const label = formatSyncLabel(stored);
+            if(label){
+                setSyncBadgeMessage(`Última sincronização: ${label}`);
+            } else {
+                setSyncBadgeMessage('Nunca sincronizado');
+            }
+        }
+
+        function handleSyncEvent(event){
+            if(!syncStatusBadge){
+                return;
+            }
+            const state = event && event.detail ? event.detail.state : undefined;
+            if(state === 'start'){
+                toggleSyncLoading(true);
+                setSyncBadgeMessage('Sincronizando...');
+            } else if(state === 'success'){
+                toggleSyncLoading(false);
+                refreshSyncBadgeFromStorage();
+            } else if(state === 'error'){
+                toggleSyncLoading(false);
+                setSyncBadgeMessage('Falha ao sincronizar. Dados locais ativos.');
+            }
+        }
+
+        function handleSyncStorageEvent(event){
+            if(event && event.key === 'last_sync_at'){
+                refreshSyncBadgeFromStorage();
+            }
+        }
+
+        refreshSyncBadgeFromStorage();
+        toggleSyncLoading(false);
+
+        if(typeof window !== 'undefined' && window.addEventListener){
+            window.addEventListener('controlada:sync', handleSyncEvent);
+            window.addEventListener('storage', handleSyncStorageEvent);
+        }
 
     // --- Renda e sobra ---
     
@@ -307,6 +408,14 @@
     const searchHistorico = document.getElementById('search-historico');
     const filterCategoriaHistorico = document.getElementById('filter-categoria-historico');
     const filterMetodoHistorico = document.getElementById('filter-metodo-historico');
+    const auditoriaRendaLista = document.getElementById('lista-auditoria-renda');
+    const auditoriaRendaEmpty = document.getElementById('auditoria-renda-empty');
+    const btnConciliacaoBeneficios = document.getElementById('abrir-conciliacao-beneficios');
+    const modalConciliacao = document.getElementById('modal-conciliacao-beneficios');
+    const modalConciliacaoClose = document.getElementById('modal-conciliacao-close');
+    const modalConciliacaoFechar = document.getElementById('modal-conciliacao-fechar');
+    const conciliacaoBeneficiosResumo = document.getElementById('conciliacao-beneficios-list');
+    const conciliacaoGastosList = document.getElementById('conciliacao-gastos-list');
 
     inicializarMascarasDeMoeda();
     inicializarBotoesRapidosDeValor();
@@ -591,6 +700,7 @@
         renderBenefitCardsList();
         atualizarSidebar();
         atualizarSeletoresMetodos();
+        atualizarTimelineRenda();
     }
 
     function editarBeneficio(id){
@@ -608,7 +718,7 @@
             return;
         }
         if(typeof dataService.updateBenefitCard === 'function'){
-            dataService.updateBenefitCard(id, { saldo: novoSaldo });
+            dataService.updateBenefitCard(id, { saldo: novoSaldo }, { origem: 'modal-beneficio' });
         } else if(typeof dataService.setBenefitCards === 'function'){
             const atualizados = beneficios.map(item => item.id === id ? Object.assign({}, item, { saldo: novoSaldo }) : item);
             dataService.setBenefitCards(atualizados);
@@ -616,6 +726,7 @@
         renderBenefitCardsList();
         atualizarSidebar();
         atualizarSeletoresMetodos();
+        atualizarTimelineRenda();
     }
 
     function traduzirFrequencia(freq) {
@@ -637,6 +748,106 @@
         }
         const [ano, mes, dia] = partes;
         return `${dia}/${mes}/${ano}`;
+    }
+
+    function formatarDataHoraCurta(timestamp){
+        if(!timestamp){
+            return '-';
+        }
+        const data = new Date(timestamp);
+        if(Number.isNaN(data.getTime())){
+            return '-';
+        }
+        return data.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    function descreverTipoAuditoria(evento){
+        const tipo = evento && evento.tipoAlteracao;
+        switch(tipo){
+            case 'renda-base':
+                return 'Renda base atualizada';
+            case 'beneficio-adicionado':
+                return 'Benefício adicionado';
+            case 'beneficio-atualizado':
+                return 'Saldo de benefício ajustado';
+            case 'beneficio-removido':
+                return 'Benefício removido';
+            case 'beneficio-conciliado':
+                return 'Conciliação de benefício';
+            default:
+                return 'Alteração registrada';
+        }
+    }
+
+    function atualizarTimelineRenda(){
+        if(!auditoriaRendaLista){
+            return;
+        }
+        const eventos = (dataService && typeof dataService.getRendaAuditoria === 'function')
+            ? dataService.getRendaAuditoria()
+            : [];
+        const ordenados = eventos
+            .slice()
+            .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+            .slice(0, 8);
+        auditoriaRendaLista.innerHTML = '';
+        if(!ordenados.length){
+            if(auditoriaRendaEmpty){
+                auditoriaRendaEmpty.style.display = 'block';
+            } else {
+                const vazio = document.createElement('li');
+                vazio.className = 'auditoria-empty';
+                vazio.textContent = 'Nenhuma alteração registrada ainda.';
+                auditoriaRendaLista.appendChild(vazio);
+            }
+            return;
+        }
+        if(auditoriaRendaEmpty){
+            auditoriaRendaEmpty.style.display = 'none';
+        }
+        ordenados.forEach(evento => {
+            const li = document.createElement('li');
+            li.className = 'auditoria-item';
+
+            const cabecalho = document.createElement('div');
+            cabecalho.className = 'auditoria-item-header';
+            const titulo = document.createElement('strong');
+            titulo.textContent = descreverTipoAuditoria(evento);
+            cabecalho.appendChild(titulo);
+
+            if(evento && evento.beneficioNome){
+                const badge = document.createElement('span');
+                badge.className = 'auditoria-badge';
+                badge.textContent = evento.beneficioNome;
+                cabecalho.appendChild(badge);
+            }
+
+            const dataSpan = document.createElement('span');
+            dataSpan.className = 'auditoria-data';
+            dataSpan.textContent = formatarDataHoraCurta(evento.timestamp);
+            cabecalho.appendChild(dataSpan);
+
+            const valores = document.createElement('div');
+            valores.className = 'auditoria-item-valores';
+            const anterior = Number.isNaN(parseFloat(evento && evento.valorAnterior))
+                ? 0
+                : parseFloat(evento.valorAnterior);
+            const novo = Number.isNaN(parseFloat(evento && evento.valorNovo))
+                ? 0
+                : parseFloat(evento.valorNovo);
+            valores.textContent = `${formatCurrency(anterior)} → ${formatCurrency(novo)}`;
+
+            const origem = document.createElement('small');
+            origem.className = 'auditoria-item-origem';
+            if(evento && evento.origem){
+                origem.textContent = `Origem: ${evento.origem}`;
+            }
+
+            li.appendChild(cabecalho);
+            li.appendChild(valores);
+            li.appendChild(origem);
+            auditoriaRendaLista.appendChild(li);
+        });
     }
 
     function calcularProximaDataRecorrente(dataAtual, frequencia){
@@ -1011,12 +1222,15 @@
                 }
                 if (valor >= 0) {
                     if (typeof dataService.setRendaBase === 'function') {
-                        dataService.setRendaBase(valor);
+                        dataService.setRendaBase(valor, { origem: 'modal-renda' });
                     } else if (typeof dataService.setRenda === 'function') {
                         dataService.setRenda(valor);
                     }
                     atualizarSidebar();
                     renderBenefitCardsList();
+                    atualizarTimelineRenda();
+                } else {
+                    alert('Valor inválido!');
                 }
             }
         });
@@ -1049,7 +1263,7 @@
                 saldo: Math.round(saldo * 100) / 100
             };
             if (typeof dataService.addBenefitCard === 'function') {
-                dataService.addBenefitCard(novo);
+                dataService.addBenefitCard(novo, { origem: 'modal-beneficio' });
             } else if (typeof dataService.setBenefitCards === 'function') {
                 const listaAtualizada = existentes.concat([novo]);
                 dataService.setBenefitCards(listaAtualizada);
@@ -1057,6 +1271,7 @@
             renderBenefitCardsList();
             atualizarSidebar();
             atualizarSeletoresMetodos();
+            atualizarTimelineRenda();
             formBeneficio.reset();
             if (selectBeneficioTipo) {
                 selectBeneficioTipo.value = 'alimentacao';
@@ -1080,6 +1295,53 @@
             }
         });
     }
+
+    if(btnConciliacaoBeneficios){
+        btnConciliacaoBeneficios.addEventListener('click', abrirModalConciliacao);
+    }
+
+    if(modalConciliacaoClose){
+        modalConciliacaoClose.addEventListener('click', fecharModalConciliacao);
+    }
+
+    if(modalConciliacaoFechar){
+        modalConciliacaoFechar.addEventListener('click', fecharModalConciliacao);
+    }
+
+    if(modalConciliacao){
+        modalConciliacao.addEventListener('click', function(evento){
+            if(evento.target === modalConciliacao){
+                fecharModalConciliacao();
+            }
+        });
+    }
+
+    if(conciliacaoGastosList){
+        conciliacaoGastosList.addEventListener('click', function(evento){
+            const botao = evento.target.closest('[data-action="conciliar-beneficio"]');
+            if(!botao){
+                return;
+            }
+            const beneficioId = botao.dataset.beneficioId;
+            const gastoId = botao.dataset.gastoId;
+            const valor = parseFloat(botao.dataset.valor || 0);
+            if(!beneficioId || Number.isNaN(valor)){
+                return;
+            }
+            const resultado = (dataService && typeof dataService.conciliateBenefitWithExpense === 'function')
+                ? dataService.conciliateBenefitWithExpense(beneficioId, gastoId, valor, { origem: 'painel-conciliacao', gastoDescricao: botao.dataset.descricao || '' })
+                : null;
+            if(!resultado || !resultado.valorConciliado){
+                alert('Não foi possível conciliar este gasto. Verifique o saldo disponível.');
+                return;
+            }
+            renderConciliacaoPainel();
+            renderBenefitCardsList();
+            atualizarSidebar();
+            atualizarSeletoresMetodos();
+            atualizarTimelineRenda();
+        });
+    }
     // --- Fim renda/sobra ---
 
     // --- Gastos: salvar no localStorage ---
@@ -1089,6 +1351,160 @@
     function getMesAnoSelecionado() {
         const valorSelecionado = (selectMesAno && selectMesAno.value) ? selectMesAno.value : '';
         return valorSelecionado || dataService.getCurrentCycleKeyStr();
+    }
+
+    function gerarChaveConciliacao(beneficioId, gastoId){
+        return `${beneficioId || ''}-${gastoId || ''}`;
+    }
+
+    function obterIdSeguroGasto(gasto){
+        if(gasto && gasto.id){
+            return gasto.id;
+        }
+        const descricao = gasto && gasto.descricao ? gasto.descricao : 'gasto';
+        const data = gasto && gasto.data ? gasto.data : Date.now();
+        return `gasto-${descricao}-${data}`;
+    }
+
+    function renderConciliacaoPainel(){
+        if(!conciliacaoBeneficiosResumo || !conciliacaoGastosList){
+            return;
+        }
+        const beneficios = getBenefitCards();
+        const gastosMes = dataService.getGastosDoMesAno(getMesAnoSelecionado()) || [];
+        const logConciliacao = (dataService && typeof dataService.getBenefitConciliationLog === 'function')
+            ? dataService.getBenefitConciliationLog()
+            : [];
+        const gastosConciliados = new Set();
+        logConciliacao.forEach(item => {
+            if(item && item.beneficioId && item.gastoId){
+                gastosConciliados.add(gerarChaveConciliacao(item.beneficioId, item.gastoId));
+            }
+        });
+
+        conciliacaoBeneficiosResumo.innerHTML = '';
+        conciliacaoGastosList.innerHTML = '';
+
+        if(!beneficios.length){
+            const vazio = document.createElement('p');
+            vazio.className = 'conciliacao-empty';
+            vazio.textContent = 'Cadastre cartões de benefício para habilitar a conciliação.';
+            conciliacaoBeneficiosResumo.appendChild(vazio);
+            return;
+        }
+
+        beneficios.forEach(beneficio => {
+            const card = document.createElement('div');
+            card.className = 'conciliacao-beneficio-card';
+            const textoWrapper = document.createElement('div');
+            const titulo = document.createElement('strong');
+            titulo.textContent = beneficio.nome;
+            const legenda = document.createElement('small');
+            legenda.textContent = getBenefitLabel(beneficio.tipo);
+            textoWrapper.appendChild(titulo);
+            textoWrapper.appendChild(legenda);
+            const saldo = document.createElement('span');
+            saldo.className = 'conciliacao-beneficio-saldo';
+            saldo.textContent = formatCurrency(beneficio.saldo || 0);
+            card.appendChild(textoWrapper);
+            card.appendChild(saldo);
+            conciliacaoBeneficiosResumo.appendChild(card);
+        });
+
+        beneficios.forEach(beneficio => {
+            const section = document.createElement('section');
+            section.className = 'conciliacao-gastos-section';
+            section.dataset.beneficioId = beneficio.id;
+
+            const header = document.createElement('div');
+            header.className = 'conciliacao-gastos-header';
+            const titulo = document.createElement('div');
+            const strongTitulo = document.createElement('strong');
+            strongTitulo.textContent = beneficio.nome;
+            const smallTitulo = document.createElement('small');
+            smallTitulo.textContent = 'Gastos recentes vinculados';
+            titulo.appendChild(strongTitulo);
+            titulo.appendChild(smallTitulo);
+            const saldoAtual = document.createElement('span');
+            saldoAtual.className = 'conciliacao-gastos-saldo';
+            saldoAtual.textContent = formatCurrency(beneficio.saldo || 0);
+            header.appendChild(titulo);
+            header.appendChild(saldoAtual);
+
+            const lista = document.createElement('ul');
+            lista.className = 'conciliacao-gastos-lista';
+            const gastosRelacionados = gastosMes
+                .filter(gasto => String(gasto.metodoPagamento || '').toLowerCase() === String(beneficio.nome || '').toLowerCase())
+                .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')))
+                .slice(0, 5);
+
+            if(!gastosRelacionados.length){
+                const vazio = document.createElement('li');
+                vazio.className = 'conciliacao-gasto-item vazio';
+                vazio.textContent = 'Nenhum gasto encontrado para este cartão no período selecionado.';
+                lista.appendChild(vazio);
+            } else {
+                gastosRelacionados.forEach(gasto => {
+                    const li = document.createElement('li');
+                    li.className = 'conciliacao-gasto-item';
+                    const gastoId = obterIdSeguroGasto(gasto);
+                    const chaveConciliada = gerarChaveConciliacao(beneficio.id, gastoId);
+                    const conciliarBtn = document.createElement('button');
+                    conciliarBtn.type = 'button';
+                    conciliarBtn.className = 'conciliacao-action-btn';
+                    conciliarBtn.dataset.action = 'conciliar-beneficio';
+                    conciliarBtn.dataset.beneficioId = beneficio.id;
+                    conciliarBtn.dataset.gastoId = gastoId;
+                    conciliarBtn.dataset.valor = gasto.valor;
+                    conciliarBtn.dataset.descricao = gasto.descricao || '';
+                    conciliarBtn.textContent = 'Baixar saldo';
+
+                    const info = document.createElement('div');
+                    info.className = 'conciliacao-gasto-info';
+                    const descricao = document.createElement('strong');
+                    descricao.textContent = gasto.descricao || 'Gasto sem descrição';
+                    const meta = document.createElement('div');
+                    meta.className = 'conciliacao-gasto-meta';
+                    const valorSpan = document.createElement('span');
+                    valorSpan.textContent = formatCurrency(gasto.valor || 0);
+                    const dataSpan = document.createElement('span');
+                    dataSpan.textContent = formatarDataCurta(gasto.data);
+                    meta.appendChild(valorSpan);
+                    meta.appendChild(dataSpan);
+                    info.appendChild(descricao);
+                    info.appendChild(meta);
+
+                    const jaConciliado = gastosConciliados.has(chaveConciliada);
+                    if(jaConciliado){
+                        conciliarBtn.disabled = true;
+                        conciliarBtn.textContent = 'Conciliado';
+                        li.classList.add('conciliado');
+                    }
+
+                    li.appendChild(info);
+                    li.appendChild(conciliarBtn);
+                    lista.appendChild(li);
+                });
+            }
+
+            section.appendChild(header);
+            section.appendChild(lista);
+            conciliacaoGastosList.appendChild(section);
+        });
+    }
+
+    function abrirModalConciliacao(){
+        if(!modalConciliacao){
+            return;
+        }
+        renderConciliacaoPainel();
+        modalConciliacao.style.display = 'flex';
+    }
+
+    function fecharModalConciliacao(){
+        if(modalConciliacao){
+            modalConciliacao.style.display = 'none';
+        }
     }
     const chkRecorrente = document.getElementById('gasto-recorrente');
     const freqRecorrente = document.getElementById('freq-recorrente');
@@ -1593,6 +2009,7 @@
     if (chartsManager && typeof chartsManager.refreshAll === 'function') {
         chartsManager.refreshAll();
     }
+    atualizarTimelineRenda();
 
     function isSidebarExpanded(){
         if(!sidebarCol){
