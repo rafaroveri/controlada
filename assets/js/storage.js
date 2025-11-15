@@ -1,5 +1,6 @@
 (function(global){
     let remoteService = null;
+    const localOnlyKeys = new Set(['categorias_arquivadas_info']);
     try {
         remoteService = global.backendService || global.firebaseService || (typeof require !== 'undefined' ? require('./backend-service') : null);
     } catch (error) {
@@ -7,6 +8,9 @@
     }
 
     function persist(key, value){
+        if(localOnlyKeys.has(key)){
+            return;
+        }
         if(!remoteService || typeof remoteService.persistKey !== 'function'){
             return;
         }

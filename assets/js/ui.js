@@ -289,6 +289,7 @@
     }
 
     function bootInterface(authService){
+        const remoteService = authService || window.backendService || window.firebaseService || null;
 
         const syncStatusBadge = document.getElementById('sync-status-badge');
         const syncStatusText = syncStatusBadge ? syncStatusBadge.querySelector('.sync-status-text') : null;
@@ -369,7 +370,7 @@
         }
 
     // --- Renda e sobra ---
-    
+
     // Verificar se elementos existem antes de tentar acessá-los
     const rendaValor = document.getElementById('sidebar-renda-valor');
     const sidebarBeneficiosValor = document.getElementById('sidebar-beneficios-valor');
@@ -1564,6 +1565,7 @@
     const inputNomeCategoria = document.getElementById('nome-categoria');
     const inputCorCategoria = document.getElementById('cor-categoria');
     const selectCategoria = document.getElementById('categoria');
+    const listaCategoriasArquivadas = document.getElementById('lista-categorias-arquivadas');
 
     // Carregar categorias do localStorage ou usar padrão
     function getCategoriasPersonalizadas() {
@@ -1620,6 +1622,67 @@
     atualizarComboboxCategorias();
     // Atualizar lista de categorias com botões de exclusão
     atualizarListaCategorias();
+    atualizarListaArquivadas();
+
+    function atualizarListaArquivadas() {
+        if (!listaCategoriasArquivadas) return;
+        listaCategoriasArquivadas.innerHTML = '';
+        const arquivadas = dataService.getCategoriasRemovidas() || [];
+        if (!arquivadas.length) {
+            const empty = document.createElement('p');
+            empty.className = 'empty-state';
+            empty.textContent = 'Nenhuma categoria arquivada no momento.';
+            listaCategoriasArquivadas.appendChild(empty);
+            return;
+        }
+        arquivadas.forEach(cat => {
+            const item = document.createElement('div');
+            item.className = 'categoria-arquivada-item';
+
+            const infos = document.createElement('div');
+            infos.className = 'categoria-arquivada-infos';
+
+            const cor = document.createElement('span');
+            cor.className = 'categoria-arquivada-cor';
+            cor.style.backgroundColor = cat.cor || '#bdbdbd';
+
+            const nome = document.createElement('span');
+            nome.className = 'categoria-arquivada-nome';
+            nome.textContent = cat.nome || 'Categoria';
+
+            const tipo = document.createElement('span');
+            tipo.className = 'categoria-arquivada-tipo';
+            tipo.textContent = cat.origem === 'padrao' ? 'Padrão' : 'Personalizada';
+
+            infos.appendChild(cor);
+            infos.appendChild(nome);
+            infos.appendChild(tipo);
+
+            const restoreBtn = document.createElement('button');
+            restoreBtn.type = 'button';
+            restoreBtn.className = 'btn-restaurar-categoria';
+            restoreBtn.textContent = 'Restaurar';
+            restoreBtn.addEventListener('click', () => restaurarCategoriaArquivada(cat));
+
+            item.appendChild(infos);
+            item.appendChild(restoreBtn);
+            listaCategoriasArquivadas.appendChild(item);
+        });
+    }
+
+    function restaurarCategoriaArquivada(cat) {
+        if (!cat) return;
+        dataService.restoreCategoria(cat);
+        atualizarComboboxCategorias();
+        atualizarListaCategorias();
+        atualizarListaArquivadas();
+        showConfigFeedback({
+            title: 'Categoria restaurada',
+            message: `${cat.nome || 'Categoria'} voltou para o catálogo.`,
+            type: 'success',
+            autoHide: 6000
+        });
+    }
 
     // Mapeamento de cores das categorias
     const categoriaCores = {};
@@ -1664,7 +1727,7 @@
             `;
             btn.title = `Excluir categoria ${cat.nome}`;
             btn.addEventListener('click', function() {
-                tentarExcluirCategoria(cat.id, cat.nome, cat.valor);
+                tentarExcluirCategoria(cat);
             });
             
             li.appendChild(infoDiv);
@@ -1693,23 +1756,24 @@
     }
 
     // Tenta excluir categoria, verificando uso em gastos
-    function tentarExcluirCategoria(id, nome, valorCategoria) {
-        const usados = dataService.findExpensesByCategoryId(id, valorCategoria);
+    function tentarExcluirCategoria(categoria) {
+        if (!categoria) return;
+        const usados = dataService.findExpensesByCategoryId(categoria.id, categoria.valor);
         if (usados.length) {
-            abrirModalCategoriaEmUso(nome, usados.length);
+            abrirModalCategoriaEmUso(categoria.nome, usados.length);
             return;
         }
-        let personalizadas = getCategoriasPersonalizadas();
-        if (personalizadas.some(c => c.id === id)) {
-            personalizadas = personalizadas.filter(c => c.id !== id);
-            setCategoriasPersonalizadas(personalizadas);
-        } else {
-            const removidas = getCategoriasRemovidas();
-            removidas.push(id);
-            setCategoriasRemovidas(removidas);
-        }
+        const isPersonalizada = getCategoriasPersonalizadas().some(c => c.id === categoria.id);
+        dataService.archiveCategoria({
+            id: categoria.id,
+            nome: categoria.nome,
+            valor: categoria.valor,
+            cor: categoria.cor,
+            origem: isPersonalizada ? 'personalizada' : 'padrao'
+        });
         atualizarComboboxCategorias();
         atualizarListaCategorias();
+        atualizarListaArquivadas();
     }
 
     // --- Modal de confirmação de exclusão ---
@@ -2324,6 +2388,46 @@
     // Configuração do dia de início do mês financeiro: inicializa campo e salva valor
     const formConfig = document.getElementById('form-config');
     const inputDiaInicioMes = document.getElementById('dia-inicio-mes');
+    const configFeedbackRegion = document.getElementById('config-feedback');
+    const configBannerTemplate = document.getElementById('template-config-banner');
+    const btnFullSync = document.getElementById('btn-full-sync');
+    let configBannerTimeout = null;
+
+    function hideConfigFeedback(){
+        if(configBannerTimeout){
+            clearTimeout(configBannerTimeout);
+            configBannerTimeout = null;
+        }
+        if(configFeedbackRegion){
+            configFeedbackRegion.innerHTML = '';
+        }
+    }
+
+    function showConfigFeedback(options){
+        if(!configFeedbackRegion || !configBannerTemplate){
+            return;
+        }
+        const { title = 'Atualização', message = '', type = 'info', autoHide = 6000 } = options || {};
+        hideConfigFeedback();
+        const banner = configBannerTemplate.content.firstElementChild.cloneNode(true);
+        banner.classList.add(`config-banner--${type}`);
+        const titleEl = banner.querySelector('.config-banner-title');
+        const textEl = banner.querySelector('.config-banner-text');
+        if(titleEl){
+            titleEl.textContent = title;
+        }
+        if(textEl){
+            textEl.textContent = message;
+        }
+        const closeBtn = banner.querySelector('.config-banner-close');
+        if(closeBtn){
+            closeBtn.addEventListener('click', hideConfigFeedback);
+        }
+        configFeedbackRegion.appendChild(banner);
+        if(autoHide !== null){
+            configBannerTimeout = window.setTimeout(hideConfigFeedback, autoHide);
+        }
+    }
     if (inputDiaInicioMes) {
         inputDiaInicioMes.value = dataService.getInicioMes();
     }
@@ -2343,9 +2447,69 @@
                         chartsManager.renderMensalChart();
                     }
                 }
-                alert('Configurações salvas com sucesso!');
+                const intervaloAtual = typeof dataService.getCycleIntervalLabel === 'function'
+                    ? dataService.getCycleIntervalLabel(new Date())
+                    : '';
+                const mensagem = intervaloAtual
+                    ? `Ciclo atual: ${intervaloAtual}`
+                    : 'Configurações aplicadas com sucesso.';
+                showConfigFeedback({
+                    title: 'Configurações salvas',
+                    message: mensagem,
+                    type: 'success',
+                    autoHide: 6500
+                });
             } else {
-                alert('Por favor, insira um dia entre 1 e 28.');
+                showConfigFeedback({
+                    title: 'Valor inválido',
+                    message: 'Por favor, insira um dia entre 1 e 28.',
+                    type: 'error',
+                    autoHide: 6000
+                });
+            }
+        });
+    }
+
+    if (btnFullSync) {
+        btnFullSync.addEventListener('click', async function() {
+            if (!remoteService || typeof remoteService.loadUserDataToLocalCache !== 'function') {
+                showConfigFeedback({
+                    title: 'Sincronização indisponível',
+                    message: 'Configure o modo online para usar esta funcionalidade.',
+                    type: 'warning',
+                    autoHide: 6000
+                });
+                return;
+            }
+            btnFullSync.disabled = true;
+            showConfigFeedback({
+                title: 'Sincronizando dados...',
+                message: 'Buscando informações mais recentes no servidor.',
+                type: 'info',
+                autoHide: null
+            });
+            try {
+                await remoteService.loadUserDataToLocalCache(true);
+                preencherSelectMesAno();
+                atualizarTudoPorMes();
+                atualizarComboboxCategorias();
+                atualizarListaCategorias();
+                atualizarListaArquivadas();
+                showConfigFeedback({
+                    title: 'Sincronização concluída',
+                    message: 'Seus dados foram atualizados com sucesso.',
+                    type: 'success',
+                    autoHide: 6500
+                });
+            } catch (error) {
+                showConfigFeedback({
+                    title: 'Erro ao sincronizar',
+                    message: error?.message || 'Não foi possível completar a sincronização agora.',
+                    type: 'error',
+                    autoHide: 7000
+                });
+            } finally {
+                btnFullSync.disabled = false;
             }
         });
     }

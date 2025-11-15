@@ -1,50 +1,138 @@
 (function(global){
-    const storage = global.storageUtil || (typeof require !== 'undefined' ? require('./storage') : null);
+    const REMOVIDAS_KEY = 'categorias_removidas';
+    const REMOVIDAS_INFO_KEY = 'categorias_arquivadas_info';
 
-    if(!storage){
-        throw new Error('storageUtil é obrigatório para o CategoriaService.');
+    const categoriasPadrao = [
+        { id:'alimentacao', nome:'Alimentação', valor:'alimentacao', cor:'#ffb347' },
+        { id:'transporte', nome:'Transporte', valor:'transporte', cor:'#6ec6ff' },
+        { id:'lazer', nome:'Lazer', valor:'lazer', cor:'#b388ff' },
+        { id:'saude', nome:'Saúde', valor:'saude', cor:'#81c784' },
+        { id:'outros', nome:'Outros', valor:'outros', cor:'#e0e0e0' }
+    ];
+
+    function getRemovedIds(){
+        const lista = storageUtil.getJSON(REMOVIDAS_KEY, []);
+        if(Array.isArray(lista)){
+            return lista.filter(Boolean);
+        }
+        return [];
     }
 
-    function normalizeValor(nome, valorPersonalizado){
-        if(valorPersonalizado){
-            return valorPersonalizado;
-        }
-        if(!nome){
-            return `categoria-${Date.now()}`;
-        }
-        return nome
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[^a-z0-9\s-]/g, '')
-            .trim()
-            .replace(/\s+/g, '-');
+    function setRemovedIds(ids){
+        storageUtil.setJSON(REMOVIDAS_KEY, Array.from(new Set((ids || []).filter(Boolean))));
     }
 
-    function ensureLists(){
-        const personalizadas = storage.getJSON('categorias_usuario', []);
-        const removidas = storage.getJSON('categorias_removidas', []);
-        if(!Array.isArray(personalizadas)){
-            storage.setJSON('categorias_usuario', []);
+    function getArchivedInfo(){
+        const lista = storageUtil.getJSON(REMOVIDAS_INFO_KEY, []);
+        if(Array.isArray(lista)){
+            return lista.filter(item => item && item.id);
         }
-        if(!Array.isArray(removidas)){
-            storage.setJSON('categorias_removidas', []);
-        }
+        return [];
+    }
+
+    function setArchivedInfo(lista){
+        const normalizado = Array.isArray(lista) ? lista.filter(item => item && item.id).map(item => ({
+            id: item.id,
+            nome: item.nome || '',
+            valor: item.valor || '',
+            cor: item.cor || '#9acd32'
+        })) : [];
+        storageUtil.setJSON(REMOVIDAS_INFO_KEY, normalizado);
+    }
+
+    function isDefaultCategory(id){
+        return categoriasPadrao.some(cat => cat.id === id);
     }
 
     const CategoriaService = {
+        getCatalogoPadrao(){
+            return categoriasPadrao.slice();
+        },
         getPersonalizadas(){
             ensureLists();
             return storage.getJSON('categorias_usuario', []);
         },
         setPersonalizadas(lista){
-            storage.setJSON('categorias_usuario', Array.isArray(lista) ? lista : []);
+            storageUtil.setJSON('categorias_usuario', Array.isArray(lista) ? lista : []);
         },
         getRemovidas(){
-            ensureLists();
-            return storage.getJSON('categorias_removidas', []);
+            const ids = getRemovedIds();
+            if(ids.length === 0) return [];
+            const arquivadas = getArchivedInfo();
+            return ids.map(id => {
+                const padrao = categoriasPadrao.find(cat => cat.id === id);
+                if(padrao){
+                    return { ...padrao, origem: 'padrao' };
+                }
+                const personalizada = arquivadas.find(cat => cat.id === id)
+                    || this.getPersonalizadas().find(cat => cat.id === id);
+                if(personalizada){
+                    return { ...personalizada, origem: 'personalizada' };
+                }
+                return { id, nome: 'Categoria removida', valor: id, cor: '#bdbdbd', origem: 'desconhecida' };
+            });
         },
         setRemovidas(lista){
-            storage.setJSON('categorias_removidas', Array.isArray(lista) ? lista : []);
+            const ids = Array.from(new Set((Array.isArray(lista) ? lista : []).map(item => {
+                if(typeof item === 'string') return item;
+                if(item && item.id) return item.id;
+                return null;
+            }).filter(Boolean)));
+            setRemovedIds(ids);
+            const atuais = getArchivedInfo().filter(item => ids.includes(item.id));
+            setArchivedInfo(atuais);
+        },
+        saveArquivada(categoria){
+            if(!categoria || !categoria.id){
+                return;
+            }
+            const ids = new Set(getRemovedIds());
+            ids.add(categoria.id);
+            setRemovedIds(Array.from(ids));
+            if(!isDefaultCategory(categoria.id)){
+                const arquivadas = getArchivedInfo();
+                const payload = {
+                    id: categoria.id,
+                    nome: categoria.nome,
+                    valor: categoria.valor,
+                    cor: categoria.cor
+                };
+                const idx = arquivadas.findIndex(item => item.id === categoria.id);
+                if(idx >= 0){
+                    arquivadas[idx] = payload;
+                } else {
+                    arquivadas.push(payload);
+                }
+                setArchivedInfo(arquivadas);
+            }
+        },
+        restaurarCategoria(categoria){
+            if(!categoria || !categoria.id){
+                return;
+            }
+            const ids = getRemovedIds().filter(id => id !== categoria.id);
+            setRemovedIds(ids);
+            if(categoria.origem === 'personalizada' || !isDefaultCategory(categoria.id)){
+                const personalizadas = this.getPersonalizadas();
+                if(!personalizadas.some(cat => cat.id === categoria.id)){
+                    personalizadas.push({
+                        id: categoria.id,
+                        nome: categoria.nome,
+                        valor: categoria.valor,
+                        cor: categoria.cor
+                    });
+                    this.setPersonalizadas(personalizadas);
+                }
+            }
+            const arquivadas = getArchivedInfo().filter(item => item.id !== categoria.id);
+            setArchivedInfo(arquivadas);
+        },
+        getCategoriaById(id){
+            if(!id) return null;
+            return categoriasPadrao.find(cat => cat.id === id)
+                || this.getPersonalizadas().find(cat => cat.id === id)
+                || getArchivedInfo().find(cat => cat.id === id)
+                || null;
         },
         generateId(){
             return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).substring(2));
@@ -80,16 +168,9 @@
             this.setRemovidas(removidas);
         },
         getTodas(){
-            const padrao = [
-                { id:'alimentacao', nome:'Alimentação', valor:'alimentacao', cor:'#ffb347' },
-                { id:'transporte', nome:'Transporte', valor:'transporte', cor:'#6ec6ff' },
-                { id:'lazer', nome:'Lazer', valor:'lazer', cor:'#b388ff' },
-                { id:'saude', nome:'Saúde', valor:'saude', cor:'#81c784' },
-                { id:'outros', nome:'Outros', valor:'outros', cor:'#e0e0e0' }
-            ];
+            const removidas = new Set(getRemovedIds());
             const personalizadas = this.getPersonalizadas();
-            const removidas = this.getRemovidas();
-            return [...padrao, ...personalizadas].filter(c => !removidas.includes(c.id));
+            return [...categoriasPadrao, ...personalizadas].filter(c => !removidas.has(c.id));
         }
     };
     if(typeof module !== 'undefined' && module.exports){

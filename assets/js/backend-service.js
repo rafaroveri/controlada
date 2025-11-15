@@ -17,6 +17,7 @@
         'beneficios_usuario',
         'categorias_usuario',
         'categorias_removidas',
+        'categorias_arquivadas_info',
         'perfil_usuario',
         'autenticado',
         'autenticado_at',
