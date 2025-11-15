@@ -99,14 +99,28 @@
                                 <p class="hero-subtitle">Registre seus gastos de forma inteligente e organizada</p>
                             </div>
                             <div class="hero-stats">
-                                <div class="stat-card">
-                                    <div class="stat-icon">📊</div>
+                                <div class="stat-card" data-quick-filter="mes-atual">
+                                    <div class="stat-icon">💚</div>
                                     <div class="stat-info">
-                                        <span class="stat-number" id="gastos-hoje">0</span>
-                                        <span class="stat-label">Gastos Hoje</span>
+                                        <span class="stat-label">Sobra do ciclo</span>
+                                        <span class="stat-number" id="sobra-mes">R$ 0,00</span>
                                     </div>
                                 </div>
-                                <div class="stat-card">
+                                <div class="stat-card" data-quick-filter="mes-atual">
+                                    <div class="stat-icon">📅</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Gastos do ciclo</span>
+                                        <span class="stat-number" id="gastos-mes">R$ 0,00</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card" data-quick-filter="hoje">
+                                    <div class="stat-icon">📊</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Gastos Hoje</span>
+                                        <span class="stat-number" id="gastos-hoje">0</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card" data-quick-filter="mes-atual">
                                     <div class="stat-icon">🎯</div>
                                     <div class="stat-info">
                                         <span class="stat-number" id="meta-mes">-</span>
@@ -440,7 +454,7 @@
                                         <span class="stat-number" id="maior-gasto">R$ 0,00</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="stat-card">
                                     <div class="stat-icon">🏆</div>
                                     <div class="stat-info">
@@ -448,7 +462,7 @@
                                         <span class="stat-number" id="categoria-dominante">-</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="stat-card">
                                     <div class="stat-icon">📊</div>
                                     <div class="stat-info">
@@ -456,12 +470,26 @@
                                         <span class="stat-number" id="tendencia-gastos">-</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="stat-card">
                                     <div class="stat-icon">🔮</div>
                                     <div class="stat-info">
                                         <span class="stat-label">Projeção Mensal</span>
                                         <span class="stat-number" id="projecao-mensal">R$ 0,00</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card" data-quick-filter="beneficios">
+                                    <div class="stat-icon">🎁</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Benefícios usados</span>
+                                        <span class="stat-number" id="beneficios-usados">R$ 0,00</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card" data-quick-filter="cartao-credito">
+                                    <div class="stat-icon">💳</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Cartão de crédito</span>
+                                        <span class="stat-number" id="credito-usado">R$ 0,00</span>
                                     </div>
                                 </div>
                             </div>
@@ -476,13 +504,25 @@
                                         <h4>💳 Métodos de Pagamento</h4>
                                         <div class="insight-icon">📊</div>
                                     </div>
-                                    <div class="insight-body">
-                                        <canvas id="chart-metodos" width="300" height="200"></canvas>
-                                        <table id="chart-metodos-table" class="chart-data-table visually-hidden" aria-live="polite">
-                                            <caption>Distribuição dos métodos de pagamento</caption>
-                                            <thead></thead>
-                                            <tbody></tbody>
-                                        </table>
+                                    <div class="insight-body pagamentos-grid">
+                                        <div class="pagamento-chart">
+                                            <h5 class="chart-subtitle">Participação por método</h5>
+                                            <canvas id="chart-metodos" width="300" height="200"></canvas>
+                                            <table id="chart-metodos-table" class="chart-data-table visually-hidden" aria-live="polite">
+                                                <caption>Distribuição dos métodos de pagamento</caption>
+                                                <thead></thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
+                                        <div class="pagamento-chart">
+                                            <h5 class="chart-subtitle">Benefícios x recursos próprios</h5>
+                                            <canvas id="chart-beneficios" width="300" height="200"></canvas>
+                                            <table id="chart-beneficios-table" class="chart-data-table visually-hidden" aria-live="polite">
+                                                <caption>Comparativo de gastos com benefícios</caption>
+                                                <thead></thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                                 

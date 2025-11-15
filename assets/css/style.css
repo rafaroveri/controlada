@@ -1614,6 +1614,31 @@ body[data-theme="dark"] .beneficio-empty {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
+.pagamentos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+    width: 100%;
+}
+
+.pagamento-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.pagamento-chart canvas {
+    width: 100%;
+    min-height: 240px;
+}
+
+.chart-subtitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: rgba(77, 102, 25, 0.85);
+    margin: 0;
+}
+
 /* Barra de progresso da meta */
 .meta-progress {
     width: 100%;
@@ -2395,6 +2420,7 @@ body[data-theme="dark"] .form-feedback.is-success {
 .hero-stats {
     display: flex;
     gap: 1rem;
+    flex-wrap: wrap;
     z-index: 2;
     position: relative;
 }
@@ -2412,6 +2438,15 @@ body[data-theme="dark"] .form-feedback.is-success {
     transition: all 0.3s ease;
     min-height: 100px;
     overflow: hidden;
+}
+
+.stat-card[data-quick-filter] {
+    cursor: pointer;
+}
+
+.stat-card[data-quick-filter]:focus-visible {
+    outline: 3px solid var(--yellow-green);
+    outline-offset: 3px;
 }
 
 .stat-card:hover {
