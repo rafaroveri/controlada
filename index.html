@@ -29,6 +29,10 @@
                 <span class="recorrentes-alert-icon" aria-hidden="true">🔔</span>
                 <span class="recorrentes-alert-badge" aria-hidden="true"></span>
             </button>
+            <div class="sync-status-badge" id="sync-status-badge" role="status" aria-live="polite" aria-busy="false">
+                <span class="sync-indicator-dot" aria-hidden="true"></span>
+                <span class="sync-status-text">Nunca sincronizado</span>
+            </div>
             <ul class="nav-list">
                 <li><a href="#" data-section="tela-gastos">Gastos</a></li>
                 <li><a href="#" data-section="tela-investimentos">Investimentos</a></li>
@@ -720,6 +724,7 @@
         </div>
     </div>
 
+    <script src="assets/js/auth-watchdog.js" defer></script>
     <script src="assets/js/backend-service.js" defer></script>
     <script src="assets/js/storage.js" defer></script>
     <script src="assets/js/categories.js" defer></script>

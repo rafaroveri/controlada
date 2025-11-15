@@ -5,6 +5,8 @@
     const STORAGE_PREFIX = typeof config.STORAGE_PREFIX === 'string' ? config.STORAGE_PREFIX : 'controlada_';
     const TOKEN_STORAGE_KEY = `${STORAGE_PREFIX}auth_token`;
     const USER_STORAGE_KEY = `${STORAGE_PREFIX}auth_user`;
+    const REQUEST_TIMEOUT_MS = Number(config.API_TIMEOUT_MS) > 0 ? Number(config.API_TIMEOUT_MS) : 15000;
+    const watchdog = global.authWatchdog || null;
 
     const LOCAL_KEYS = [
         'renda_usuario',
@@ -16,7 +18,9 @@
         'categorias_usuario',
         'categorias_removidas',
         'perfil_usuario',
-        'autenticado'
+        'autenticado',
+        'autenticado_at',
+        'last_sync_at'
     ];
 
     const hasFetch = typeof fetch === 'function';
@@ -47,6 +51,64 @@
     }
 
     ensureLocalStorage();
+
+    function markOfflineAuthenticated(){
+        if(watchdog && typeof watchdog.recordAuth === 'function'){
+            watchdog.recordAuth();
+            return;
+        }
+        try {
+            localStorage.setItem('autenticado', 'true');
+            localStorage.setItem('autenticado_at', String(Date.now()));
+        } catch (error) {
+            console.warn('Não foi possível atualizar o estado de autenticação offline.', error);
+        }
+    }
+
+    function clearOfflineAuth(){
+        if(watchdog && typeof watchdog.clearAuth === 'function'){
+            watchdog.clearAuth();
+            return;
+        }
+        try {
+            localStorage.removeItem('autenticado');
+            localStorage.removeItem('autenticado_at');
+        } catch (error) {
+            console.warn('Não foi possível limpar o estado de autenticação offline.', error);
+        }
+    }
+
+    function updateLastSyncTimestamp(){
+        const timestamp = new Date().toISOString();
+        try {
+            localStorage.setItem('last_sync_at', timestamp);
+        } catch (error) {
+            console.warn('Não foi possível atualizar o timestamp da última sincronização.', error);
+        }
+        return timestamp;
+    }
+
+    function dispatchSyncEvent(state, detail){
+        const target = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : null);
+        if(!target || typeof target.dispatchEvent !== 'function'){
+            return;
+        }
+        const payload = Object.assign({ state }, detail);
+        let event;
+        if(typeof target.CustomEvent === 'function'){
+            event = new target.CustomEvent('controlada:sync', { detail: payload });
+        } else if(typeof target.Event === 'function'){
+            event = new target.Event('controlada:sync');
+            event.detail = payload;
+        }
+        if(event){
+            try {
+                target.dispatchEvent(event);
+            } catch (error) {
+                console.warn('Não foi possível emitir evento de sincronização.', error);
+            }
+        }
+    }
 
     function parseNumber(value, fallback = 0){
         const num = Number(value);
@@ -101,6 +163,7 @@
             LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
             storeToken(null);
             storeUser(null);
+            clearOfflineAuth();
         } catch (error) {
             console.warn('Falha ao limpar dados locais.', error);
         }
@@ -134,18 +197,39 @@
             finalHeaders.set('Authorization', `Bearer ${token}`);
         }
 
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        let timeoutId = null;
+
+        if(controller && REQUEST_TIMEOUT_MS){
+            timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        }
+
         let response;
         try {
             response = await fetch(`${API_BASE_URL}${path}`, {
                 method,
                 headers: finalHeaders,
-                body: method === 'GET' || method === 'HEAD' ? undefined : payload
+                body: method === 'GET' || method === 'HEAD' ? undefined : payload,
+                signal: controller ? controller.signal : undefined
             });
         } catch (error) {
+            if(timeoutId){
+                clearTimeout(timeoutId);
+            }
+            if(error && error.name === 'AbortError'){
+                const timeoutError = new Error('Tempo limite ao se comunicar com a API.');
+                timeoutError.code = 'NETWORK_TIMEOUT';
+                timeoutError.cause = error;
+                throw timeoutError;
+            }
             const networkError = new Error('Falha ao se comunicar com a API.');
             networkError.code = 'NETWORK_ERROR';
             networkError.cause = error;
             throw networkError;
+        } finally {
+            if(timeoutId){
+                clearTimeout(timeoutId);
+            }
         }
 
         if(response.status === 401){
@@ -257,9 +341,7 @@
 
     async function loadUserDataToLocalCache(force = false){
         if(!isRemoteAvailable || !getStoredToken()){
-            if(!localStorage.getItem('autenticado')){
-                localStorage.setItem('autenticado', 'true');
-            }
+            markOfflineAuthenticated();
             return noopPromise;
         }
 
@@ -268,6 +350,7 @@
         }
 
         lastSyncPromise = (async () => {
+            dispatchSyncEvent('start', { action: 'snapshot' });
             const snapshot = await fetchUserSnapshot();
             const settings = snapshot.settings || snapshot.config || {};
             const income = snapshot.income || {};
@@ -293,9 +376,12 @@
                 telefone: profile.phone || profile.telefone || '',
                 temaPreferido: settings.themePreference || settings.temaPreferido || 'light'
             }));
-            localStorage.setItem('autenticado', 'true');
+            markOfflineAuthenticated();
+            const timestamp = updateLastSyncTimestamp();
+            dispatchSyncEvent('success', { action: 'snapshot', timestamp });
         })().catch(error => {
             console.error('Erro ao sincronizar dados com a API.', error);
+            dispatchSyncEvent('error', { action: 'snapshot', message: error?.message || 'Erro ao sincronizar' });
             throw error;
         }).finally(() => {
             lastSyncPromise = null;
@@ -306,9 +392,7 @@
 
     async function ensureAuthenticated(){
         if(!isRemoteAvailable){
-            if(!localStorage.getItem('autenticado')){
-                localStorage.setItem('autenticado', 'true');
-            }
+            markOfflineAuthenticated();
             return noopPromise;
         }
 
@@ -324,7 +408,7 @@
 
     async function loginWithUsername(username, password){
         if(!isRemoteAvailable){
-            localStorage.setItem('autenticado', 'true');
+            markOfflineAuthenticated();
             return noopPromise;
         }
 
@@ -426,9 +510,17 @@
         if(!isRemoteAvailable || !getStoredToken()){
             return noopPromise;
         }
+        dispatchSyncEvent('start', { action: 'persist', key });
         return request(`/sync/${encodeURIComponent(key)}`, {
             method: 'PUT',
             body: { value }
+        }).then(result => {
+            const timestamp = updateLastSyncTimestamp();
+            dispatchSyncEvent('success', { action: 'persist', key, timestamp });
+            return result;
+        }).catch(error => {
+            dispatchSyncEvent('error', { action: 'persist', key, message: error?.message || 'Erro ao sincronizar chave' });
+            throw error;
         });
     }
 

@@ -75,32 +75,133 @@
     };
     function init(){
         const authService = window.backendService || window.firebaseService;
+        const authWatchdog = window.authWatchdog;
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const shouldForceRedirect = () => {
+            window.location.href = 'login.html';
+        };
 
-        if(authService && authService.isRemoteAvailable && typeof authService.ensureAuthenticated === 'function'){
+        const enableWatchdog = () => {
+            if(authWatchdog && typeof authWatchdog.setupWatchdog === 'function'){
+                authWatchdog.setupWatchdog({ onExpire: shouldForceRedirect });
+            }
+        };
+
+        const hasRemoteAuth = authService && authService.isRemoteAvailable && typeof authService.ensureAuthenticated === 'function';
+
+        if(hasRemoteAuth){
             authService.ensureAuthenticated()
                 .then(() => {
+                    enableWatchdog();
                     bootInterface(authService);
                 })
                 .catch(() => {
-                    window.location.href = 'login.html';
+                    shouldForceRedirect();
                 });
             return;
         }
 
-        if(isLocalhost && !localStorage.getItem('autenticado')){
-            localStorage.setItem('autenticado', 'true');
+        if(isLocalhost && !(localStorage && localStorage.getItem && localStorage.getItem('autenticado'))){
+            if(authWatchdog && typeof authWatchdog.recordAuth === 'function'){
+                authWatchdog.recordAuth();
+            } else {
+                localStorage.setItem('autenticado', 'true');
+            }
         }
 
-        if(!localStorage.getItem('autenticado')){
-            window.location.href = 'login.html';
+        if(authWatchdog && typeof authWatchdog.ensureFreshSession === 'function'){
+            const stillValid = authWatchdog.ensureFreshSession({ onExpire: shouldForceRedirect });
+            if(!stillValid){
+                return;
+            }
+        } else if(!localStorage.getItem('autenticado')){
+            shouldForceRedirect();
             return;
         }
 
+        enableWatchdog();
         bootInterface(authService);
     }
 
     function bootInterface(authService){
+
+        const syncStatusBadge = document.getElementById('sync-status-badge');
+        const syncStatusText = syncStatusBadge ? syncStatusBadge.querySelector('.sync-status-text') : null;
+
+        function formatSyncLabel(timestamp){
+            if(!timestamp){
+                return null;
+            }
+            const parsed = new Date(timestamp);
+            if(Number.isNaN(parsed.getTime())){
+                return null;
+            }
+            try {
+                return parsed.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            } catch (error) {
+                return parsed.toLocaleString();
+            }
+        }
+
+        function setSyncBadgeMessage(message){
+            if(!syncStatusBadge){
+                return;
+            }
+            const target = syncStatusText || syncStatusBadge;
+            target.textContent = message;
+        }
+
+        function toggleSyncLoading(isLoading){
+            if(!syncStatusBadge){
+                return;
+            }
+            syncStatusBadge.classList.toggle('is-syncing', !!isLoading);
+            syncStatusBadge.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+        }
+
+        function refreshSyncBadgeFromStorage(){
+            if(!syncStatusBadge){
+                return;
+            }
+            const stored = localStorage.getItem('last_sync_at');
+            const label = formatSyncLabel(stored);
+            if(label){
+                setSyncBadgeMessage(`Última sincronização: ${label}`);
+            } else {
+                setSyncBadgeMessage('Nunca sincronizado');
+            }
+        }
+
+        function handleSyncEvent(event){
+            if(!syncStatusBadge){
+                return;
+            }
+            const state = event && event.detail ? event.detail.state : undefined;
+            if(state === 'start'){
+                toggleSyncLoading(true);
+                setSyncBadgeMessage('Sincronizando...');
+            } else if(state === 'success'){
+                toggleSyncLoading(false);
+                refreshSyncBadgeFromStorage();
+            } else if(state === 'error'){
+                toggleSyncLoading(false);
+                setSyncBadgeMessage('Falha ao sincronizar. Dados locais ativos.');
+            }
+        }
+
+        function handleSyncStorageEvent(event){
+            if(event && event.key === 'last_sync_at'){
+                refreshSyncBadgeFromStorage();
+            }
+        }
+
+        refreshSyncBadgeFromStorage();
+        toggleSyncLoading(false);
+
+        if(typeof window !== 'undefined' && window.addEventListener){
+            window.addEventListener('controlada:sync', handleSyncEvent);
+            window.addEventListener('storage', handleSyncStorageEvent);
+        }
 
     // --- Renda e sobra ---
     
