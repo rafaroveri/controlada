@@ -125,6 +125,34 @@
         return formatCycleKey(year, month);
     }
 
+    function shiftCycleKey(baseKey, offset = -1){
+        if(!baseKey || typeof baseKey !== 'string' || !baseKey.includes('-')){
+            return '';
+        }
+        const [yearStr, monthStr] = baseKey.split('-');
+        let year = parseInt(yearStr, 10);
+        let month = parseInt(monthStr, 10);
+        if(Number.isNaN(year) || Number.isNaN(month)){
+            return '';
+        }
+        month += offset;
+        while(month < 1){
+            month += 12;
+            year -= 1;
+        }
+        while(month > 12){
+            month -= 12;
+            year += 1;
+        }
+        return formatCycleKey(year, month);
+    }
+
+    function getPreviousCycleKey(baseKey){
+        return shiftCycleKey(baseKey, -1);
+    }
+
+    function getNextCycleKey(baseKey){
+        return shiftCycleKey(baseKey, 1);
     function getCycleIntervalForDate(data){
         const { year, month } = getCycleKeyForDate(data || new Date());
         if(!Number.isFinite(year) || !Number.isFinite(month)){
@@ -521,13 +549,10 @@
 
     function getTendenciaGastos(){
         const mesAtual = getCurrentCycleKeyStr();
-        const agora = new Date();
-        const mesAnteriorData = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
-        const cicloAnterior = getCycleKeyForDate(mesAnteriorData);
-        const mesAnteriorKey = formatCycleKey(cicloAnterior.year, cicloAnterior.month);
+        const mesAnteriorKey = getPreviousCycleKey(mesAtual);
 
         const totalAtual = getTotalGastosMes(mesAtual);
-        const totalAnterior = getTotalGastosMes(mesAnteriorKey);
+        const totalAnterior = mesAnteriorKey ? getTotalGastosMes(mesAnteriorKey) : 0;
 
         if(totalAnterior === 0){
             return totalAtual > 0 ? 'Crescimento' : 'Estável';
@@ -544,13 +569,10 @@
 
     function getComparativoMesAnterior(){
         const mesAtual = getCurrentCycleKeyStr();
-        const agora = new Date();
-        const mesAnteriorData = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
-        const cicloAnterior = getCycleKeyForDate(mesAnteriorData);
-        const mesAnteriorKey = formatCycleKey(cicloAnterior.year, cicloAnterior.month);
+        const mesAnteriorKey = getPreviousCycleKey(mesAtual);
 
         const totalAtual = getTotalGastosMes(mesAtual);
-        const totalAnterior = getTotalGastosMes(mesAnteriorKey);
+        const totalAnterior = mesAnteriorKey ? getTotalGastosMes(mesAnteriorKey) : 0;
         const variacao = totalAnterior === 0 ? 0 : ((totalAtual - totalAnterior) / totalAnterior) * 100;
 
         return {
@@ -558,6 +580,40 @@
             anterior: totalAnterior,
             variacao,
             indicador: variacao > 0 ? '📈' : variacao < 0 ? '📉' : '📊'
+        };
+    }
+
+    function getResumoPagamentosPorOrigem(mesAno){
+        const mesAtual = mesAno || getCurrentCycleKeyStr();
+        const gastos = getGastosDoMesAno(mesAtual);
+        const beneficios = getBenefitCards();
+        const beneficioSet = new Set((beneficios || []).map(item => item.nome));
+        let totalBeneficios = 0;
+        let totalCartaoCredito = 0;
+        let totalRecursosProprios = 0;
+
+        gastos.forEach(gasto => {
+            const valor = parseFloat(gasto.valor || 0);
+            if(!Number.isFinite(valor) || valor <= 0){
+                return;
+            }
+            const metodo = (gasto.metodoPagamento || '').toLowerCase();
+            if(beneficioSet.has(gasto.metodoPagamento)){
+                totalBeneficios += valor;
+                return;
+            }
+            if(metodo.includes('crédito') || metodo.includes('credito')){
+                totalCartaoCredito += valor;
+                return;
+            }
+            totalRecursosProprios += valor;
+        });
+
+        return {
+            beneficios: totalBeneficios,
+            cartaoCredito: totalCartaoCredito,
+            recursosProprios: totalRecursosProprios,
+            total: totalBeneficios + totalCartaoCredito + totalRecursosProprios
         };
     }
 
@@ -664,6 +720,8 @@
         setInicioMes,
         getCycleKeyForDate,
         getCurrentCycleKeyStr,
+        getPreviousCycleKey,
+        getNextCycleKey,
         getCycleIntervalForDate,
         getCycleIntervalLabel,
         getCategoriasPersonalizadas,
@@ -705,6 +763,7 @@
         getTendenciaGastos,
         getComparativoMesAnterior,
         getDistribuicaoMetodosPagamento,
+        getResumoPagamentosPorOrigem,
         getMaiorGasto,
         getCategoriaDominante,
         getProjecaoMensal,

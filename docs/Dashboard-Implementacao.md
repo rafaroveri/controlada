@@ -77,6 +77,17 @@ Foi implementada com sucesso a melhoria #2 do arquivo Melhorias.txt: **Dashboard
 - Layout mobile-first
 - Breakpoints em 768px e 480px
 
+## Novos datasets e drill-down
+
+- `chartsManager.renderMetodosChart()` agora utiliza um dataset em barras com valores reais de cada método de pagamento, mantendo as porcentagens nos tooltips e nas tabelas acessíveis.
+- Novo gráfico `renderBeneficiosChart()` compara o volume pago com benefícios, cartão de crédito e recursos próprios reutilizando os dados fornecidos por `dataService.getResumoPagamentosPorOrigem()`.
+- As hero sections exibem cards clicáveis com `data-quick-filter` que acionam `aplicarFiltroRapido()` para aplicar filtros como `mes-atual`, `beneficios`, `cartao-credito` e `hoje` diretamente sobre o histórico.
+
+## Ciclo financeiro customizado respeitado
+
+- Foi adicionada a função `getPreviousCycleKey()` no `dataService` para que comparativos mensais (tendência e variação) usem o ciclo configurado via `config_inicio_mes`.
+- Todas as agregações disparadas pelos cards do dashboard forçam o `selectMesAno` para `getCurrentCycleKeyStr()`, evitando leituras no mês calendário errado.
+
 ## Arquivos Modificados
 
 ### 📄 index.html

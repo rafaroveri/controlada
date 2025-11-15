@@ -425,6 +425,7 @@
     let currentView = 'table';
     let gastosOriginais = [];
     let gastosFiltrados = [];
+    let filtroRapidoAtual = null;
     let recorrentesPendentes = [];
     let rendaModalFocusTrap = null;
     let recorrentesModalFocusTrap = null;
@@ -642,6 +643,11 @@
             todosOption.value = '';
             todosOption.textContent = '💳 Todos os métodos';
             filterMetodoHistorico.appendChild(todosOption);
+
+            const apenasBeneficiosOption = document.createElement('option');
+            apenasBeneficiosOption.value = '__beneficios__';
+            apenasBeneficiosOption.textContent = '🎁 Apenas benefícios';
+            filterMetodoHistorico.appendChild(apenasBeneficiosOption);
 
             basePaymentMethods.forEach(methodo => {
                 const option = document.createElement('option');
@@ -1962,6 +1968,7 @@
     // Eventos do select
     if (selectMesAno) {
         selectMesAno.addEventListener('change', () => {
+            filtroRapidoAtual = null;
             atualizarTudoPorMes();
             if (chartsManager) {
                 if (typeof chartsManager.renderCategoriaChart === 'function') {
@@ -2371,18 +2378,22 @@
     const categoriaCanvas = document.getElementById('chartCategoria');
     const mensalCanvas = document.getElementById('chartMensal');
     const metodosCanvas = document.getElementById('chart-metodos');
+    const beneficiosCanvas = document.getElementById('chart-beneficios');
     const categoriaTable = document.getElementById('chart-categoria-table');
     const mensalTable = document.getElementById('chart-mensal-table');
     const metodosTable = document.getElementById('chart-metodos-table');
+    const beneficiosTable = document.getElementById('chart-beneficios-table');
     if (chartsManager && typeof chartsManager.init === 'function') {
         chartsManager.init({
             selectMesAno,
             categoriaCanvas,
             mensalCanvas,
             metodosCanvas,
+            beneficiosCanvas,
             categoriaTable,
             mensalTable,
-            metodosTable
+            metodosTable,
+            beneficiosTable
         });
     }
     // Configuração do dia de início do mês financeiro: inicializa campo e salva valor
@@ -2590,9 +2601,19 @@
         // Filtro por método de pagamento
         const metodoFiltro = filterMetodoHistorico ? filterMetodoHistorico.value : '';
         if (metodoFiltro) {
-            gastosFiltrados = gastosFiltrados.filter(gasto =>
-                gasto.metodoPagamento === metodoFiltro
-            );
+            if(metodoFiltro === '__beneficios__'){
+                const beneficiosNomes = new Set(getBenefitCards().map(card => card.nome));
+                gastosFiltrados = gastosFiltrados.filter(gasto => beneficiosNomes.has(gasto.metodoPagamento));
+            } else {
+                gastosFiltrados = gastosFiltrados.filter(gasto =>
+                    gasto.metodoPagamento === metodoFiltro
+                );
+            }
+        }
+
+        if(filtroRapidoAtual === 'hoje'){
+            const hoje = new Date().toISOString().slice(0, 10);
+            gastosFiltrados = gastosFiltrados.filter(gasto => gasto.data === hoje);
         }
         
         // Atualizar visualização
@@ -2827,7 +2848,8 @@
         if (searchHistorico) searchHistorico.value = '';
         if (filterCategoriaHistorico) filterCategoriaHistorico.value = '';
         if (filterMetodoHistorico) filterMetodoHistorico.value = '';
-        
+        filtroRapidoAtual = null;
+
         // Aplicar filtros (que vai chamar a renderização)
         aplicarFiltros();
     };
@@ -2844,12 +2866,15 @@
         const categoriaDominante = dataService.getCategoriaDominante();
         const tendencia = dataService.getTendenciaGastos();
         const projecao = dataService.getProjecaoMensal();
-        
+        const resumoPagamentos = dataService.getResumoPagamentosPorOrigem();
+
         // Atualizar elementos do DOM
         const maiorGastoEl = document.getElementById('maior-gasto');
         const categoriaDominanteEl = document.getElementById('categoria-dominante');
         const tendenciaEl = document.getElementById('tendencia-gastos');
         const projecaoEl = document.getElementById('projecao-mensal');
+        const beneficiosHeroEl = document.getElementById('beneficios-usados');
+        const creditoHeroEl = document.getElementById('credito-usado');
         
         if (maiorGastoEl) {
             maiorGastoEl.textContent = formatCurrency(maiorGasto.valor);
@@ -2883,6 +2908,14 @@
                 projecaoEl.classList.add('long-text');
             }
         }
+
+        if (beneficiosHeroEl) {
+            beneficiosHeroEl.textContent = formatCurrency(resumoPagamentos.beneficios);
+        }
+
+        if (creditoHeroEl) {
+            creditoHeroEl.textContent = formatCurrency(resumoPagamentos.cartaoCredito);
+        }
         
         // Atualizar comparativo mensal
         const comparativo = dataService.getComparativoMesAnterior();
@@ -2912,7 +2945,14 @@
         atualizarTimelineGastos();
         
         // Criar gráfico de métodos
-        chartsManager.renderMetodosChart();
+        if (chartsManager) {
+            if (typeof chartsManager.renderMetodosChart === 'function') {
+                chartsManager.renderMetodosChart();
+            }
+            if (typeof chartsManager.renderBeneficiosChart === 'function') {
+                chartsManager.renderBeneficiosChart();
+            }
+        }
     }
     
     // Função para atualizar timeline de gastos importantes
@@ -2957,7 +2997,21 @@
         const gastosHojeElement = document.getElementById('gastos-hoje');
         const metaMesElement = document.getElementById('meta-mes');
         const metaBar = document.getElementById('meta-progress-bar');
-        
+        const sobraMesElement = document.getElementById('sobra-mes');
+        const gastosMesElement = document.getElementById('gastos-mes');
+        const cicloAtual = dataService.getCurrentCycleKeyStr();
+        const totalMesAtual = dataService.getTotalGastosMes(cicloAtual);
+        const rendaDetalhada = obterRendaDetalhada();
+
+        if (sobraMesElement) {
+            const sobraAtual = (rendaDetalhada.total || 0) - totalMesAtual;
+            sobraMesElement.textContent = formatCurrency(sobraAtual);
+        }
+
+        if (gastosMesElement) {
+            gastosMesElement.textContent = formatCurrency(totalMesAtual);
+        }
+
         if (gastosHojeElement) {
             const quantidadeHoje = dataService.getQuantidadeGastosHoje();
             const totalHoje = dataService.getTotalGastosHoje();
@@ -2988,7 +3042,53 @@
             }
         }
     }
-    
+
+    function aplicarFiltroRapido(tipo){
+        if(!tipo) return;
+        const mesAtual = dataService.getCurrentCycleKeyStr();
+        const historicoTabButton = document.querySelector('.tab-btn[data-tab="tab-historico"]');
+
+        if(selectMesAno){
+            const opcoes = Array.from(selectMesAno.options || []);
+            const existeOpcao = opcoes.some(opt => opt.value === mesAtual);
+            if(!existeOpcao){
+                const [ano, mes] = mesAtual.split('-');
+                const nomeMes = new Date(ano, mes - 1).toLocaleString('pt-BR', { month: 'long' });
+                const option = document.createElement('option');
+                option.value = mesAtual;
+                option.textContent = `${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)} / ${ano}`;
+                selectMesAno.insertBefore(option, selectMesAno.firstChild || null);
+            }
+            selectMesAno.value = mesAtual;
+            selectMesAno.dispatchEvent(new window.Event('change'));
+        }
+
+        if(tipo === 'mes-atual'){
+            if(searchHistorico) searchHistorico.value = '';
+            if(filterCategoriaHistorico) filterCategoriaHistorico.value = '';
+            if(filterMetodoHistorico) filterMetodoHistorico.value = '';
+            filtroRapidoAtual = null;
+        } else if(tipo === 'beneficios'){
+            if(filterMetodoHistorico){
+                filterMetodoHistorico.value = '__beneficios__';
+            }
+            filtroRapidoAtual = null;
+        } else if(tipo === 'cartao-credito'){
+            if(filterMetodoHistorico){
+                filterMetodoHistorico.value = 'Crédito';
+            }
+            filtroRapidoAtual = null;
+        } else if(tipo === 'hoje'){
+            filtroRapidoAtual = 'hoje';
+        }
+
+        aplicarFiltros();
+
+        if(historicoTabButton && !historicoTabButton.classList.contains('active')){
+            historicoTabButton.click();
+        }
+    }
+
     // === FIM ESTATÍSTICAS HERO ===
     
     // ==========================================
@@ -3035,6 +3135,20 @@
     tabButtons.forEach(btn => {
         btn.removeEventListener('click', handleTabClick);
         btn.addEventListener('click', handleTabClick);
+    });
+
+    const quickFilterCards = document.querySelectorAll('[data-quick-filter]');
+    quickFilterCards.forEach(card => {
+        const filtro = card.dataset.quickFilter;
+        card.setAttribute('role', 'button');
+        card.tabIndex = 0;
+        card.addEventListener('click', () => aplicarFiltroRapido(filtro));
+        card.addEventListener('keydown', event => {
+            if(event.key === 'Enter' || event.key === ' '){
+                event.preventDefault();
+                aplicarFiltroRapido(filtro);
+            }
+        });
     });
     
     // Inicializar dashboard na inicialização da página
