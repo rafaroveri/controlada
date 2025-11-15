@@ -236,6 +236,63 @@
     overflow: hidden;
 }
 
+/* ===== Parcelamentos e histórico ===== */
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    margin-left: 0.35rem;
+    background: rgba(77, 102, 25, 0.08);
+    color: var(--dark-moss-green);
+}
+
+.status-chip--pendente {
+    background: rgba(255, 165, 0, 0.15);
+    color: #b35b00;
+}
+
+.status-chip--agendado {
+    background: rgba(55, 125, 255, 0.12);
+    color: #1f4b99;
+}
+
+.installment-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0.15rem 0.5rem;
+    background: rgba(154, 205, 50, 0.2);
+    color: var(--dark-moss-green);
+    margin-left: 0.35rem;
+}
+
+.btn-confirm-parcela {
+    background: rgba(77, 102, 25, 0.12);
+    color: var(--dark-moss-green);
+    border: 1px solid rgba(77, 102, 25, 0.35);
+    border-radius: 10px;
+    padding: 0.4rem 0.65rem;
+    margin-right: 0.35rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.btn-confirm-parcela:hover {
+    background: rgba(77, 102, 25, 0.25);
+    transform: translateY(-1px);
+}
+
+.gasto-card .status-chip,
+.gasto-card .installment-chip {
+    margin-top: 0.35rem;
 /* ===== AUDITORIA DE RENDA E CONCILIAÇÃO ===== */
 .config-extra-grid {
     margin-top: 2.5rem;

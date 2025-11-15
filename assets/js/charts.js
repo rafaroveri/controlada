@@ -36,6 +36,9 @@
         { start: '#FF7043', end: '#FFAB91' }
     ];
 
+    const STATUS_PENDENTE = 'pendente';
+    const filtrarEfetivados = lista => (lista || []).filter(item => item.status !== STATUS_PENDENTE);
+
     function createGradient(ctx, color1, color2){
         const gradient = ctx.createLinearGradient(0, 0, 0, 400);
         gradient.addColorStop(0, color1);
@@ -177,7 +180,7 @@
 
     function renderCategoriaChart(){
         const mesAno = getSelectedMesAno();
-        const gastos = dataService.getGastosDoMesAno(mesAno);
+        const gastos = filtrarEfetivados(dataService.getGastosDoMesAno(mesAno));
         const categorias = dataService.getTodasCategorias();
         const ctx = categoriaCanvasRef ? categoriaCanvasRef.getContext('2d') : null;
 
