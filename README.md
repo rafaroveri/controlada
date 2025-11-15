@@ -103,6 +103,9 @@ npx http-server
 - Configurar dia de início do ciclo financeiro
 - Gerenciar categorias personalizadas
 - Configurações de conta
+- Banner de confirmação exibe o intervalo vigente do ciclo financeiro sempre que o dia inicial é atualizado.
+- Botão "Sincronizar agora" permite disparar o full sync manual com o backend e mostra mensagens de progresso/erro.
+- Seção "Categorias arquivadas" lista itens removidos e possibilita restaurá-los preservando cor, nome e ícone.
 
 ## 🔌 API REST (Node/Express)
 

@@ -589,6 +589,16 @@
                         <h2>Configurações</h2>
                     </div>
                     <div class="config-content">
+                        <div class="config-sync-card">
+                            <div>
+                                <h3>Sincronização manual</h3>
+                                <p>Use quando precisar garantir que os dados locais e remotos estejam alinhados.</p>
+                            </div>
+                            <button type="button" id="btn-full-sync" class="btn-salvar-config btn-full-sync">
+                                🔄 Sincronizar agora
+                            </button>
+                        </div>
+                        <div id="config-feedback" class="config-feedback-region" role="status" aria-live="polite"></div>
                         <form id="form-config" class="config-form">
                             <div class="form-group">
                                 <label for="dia-inicio-mes">Dia de início do mês financeiro:</label>
@@ -596,6 +606,15 @@
                             </div>
                             <button type="submit" class="btn-salvar-config">Salvar</button>
                         </form>
+                        <section class="archived-categories" aria-labelledby="titulo-categorias-arquivadas">
+                            <div class="archived-header">
+                                <div>
+                                    <h3 id="titulo-categorias-arquivadas">Categorias arquivadas</h3>
+                                    <p>Visualize e restaure categorias removidas anteriormente.</p>
+                                </div>
+                            </div>
+                            <div id="lista-categorias-arquivadas" class="lista-categorias-arquivadas" aria-live="polite"></div>
+                        </section>
                         <h3 style="margin-top:2rem;">Metas por Categoria</h3>
                         <form id="form-metas" class="config-form">
                             <div id="metas-container"></div>
@@ -628,6 +647,16 @@
     </nav>
 
     <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
+
+    <template id="template-config-banner">
+        <div class="config-banner">
+            <div class="config-banner-content">
+                <strong class="config-banner-title"></strong>
+                <p class="config-banner-text"></p>
+            </div>
+            <button type="button" class="config-banner-close" aria-label="Fechar aviso">×</button>
+        </div>
+    </template>
 
     <div id="modal-editar-renda" class="modal-editar-renda" style="display:none;">
         <div class="modal-editar-renda-content">

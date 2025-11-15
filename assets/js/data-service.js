@@ -39,7 +39,10 @@
         getRemovidas: () => [],
         setRemovidas: () => {},
         generateId: () => Date.now().toString(36),
-        getTodas: () => []
+        getTodas: () => [],
+        saveArquivada: () => {},
+        restaurarCategoria: () => {},
+        getCategoriaById: () => null
     };
 
     const constantsAPI = constants || { DEFAULT_PAYMENT_ICON: '💰' };
@@ -120,6 +123,32 @@
         return formatCycleKey(year, month);
     }
 
+    function getCycleIntervalForDate(data){
+        const { year, month } = getCycleKeyForDate(data || new Date());
+        if(!Number.isFinite(year) || !Number.isFinite(month)){
+            return { inicio: null, fim: null };
+        }
+        const inicio = new Date(year, month - 1, getInicioMes());
+        const fim = new Date(inicio);
+        fim.setMonth(fim.getMonth() + 1);
+        fim.setDate(fim.getDate() - 1);
+        return { inicio, fim };
+    }
+
+    function getCycleIntervalLabel(data){
+        const { inicio, fim } = getCycleIntervalForDate(data);
+        if(!inicio || !fim){
+            return '';
+        }
+        const precisaAno = inicio.getFullYear() !== fim.getFullYear();
+        const formatar = (date) => {
+            const dia = String(date.getDate()).padStart(2, '0');
+            const mes = String(date.getMonth() + 1).padStart(2, '0');
+            return precisaAno ? `${dia}/${mes}/${date.getFullYear()}` : `${dia}/${mes}`;
+        };
+        return `${formatar(inicio)} a ${formatar(fim)}`;
+    }
+
     function getCategoriasPersonalizadas(){
         return categoriaAPI.getPersonalizadas();
     }
@@ -148,6 +177,41 @@
         const mapa = new Map();
         getTodasCategorias().forEach(cat => mapa.set(cat.valor, cat.id));
         return mapa;
+    }
+
+    function archiveCategoria(categoria){
+        if(!categoria || !categoria.id){
+            return;
+        }
+        if(typeof categoriaAPI.saveArquivada === 'function'){
+            categoriaAPI.saveArquivada(categoria);
+        } else {
+            const removidas = getCategoriasRemovidas();
+            if(!removidas.some(item => item.id === categoria.id)){
+                removidas.push({ id: categoria.id });
+                setCategoriasRemovidas(removidas);
+            }
+        }
+    }
+
+    function restoreCategoria(categoria){
+        if(!categoria || !categoria.id){
+            return;
+        }
+        if(typeof categoriaAPI.restaurarCategoria === 'function'){
+            categoriaAPI.restaurarCategoria(categoria);
+        } else {
+            const removidas = getCategoriasRemovidas().filter(item => item.id !== categoria.id);
+            setCategoriasRemovidas(removidas);
+        }
+    }
+
+    function getCategoriaById(id){
+        if(typeof categoriaAPI.getCategoriaById === 'function'){
+            return categoriaAPI.getCategoriaById(id);
+        }
+        const todas = getTodasCategorias();
+        return todas.find(cat => cat.id === id) || null;
     }
 
     function getGastos(){
@@ -469,12 +533,17 @@
         setInicioMes,
         getCycleKeyForDate,
         getCurrentCycleKeyStr,
+        getCycleIntervalForDate,
+        getCycleIntervalLabel,
         getCategoriasPersonalizadas,
         setCategoriasPersonalizadas,
         getCategoriasRemovidas,
         setCategoriasRemovidas,
         generateCategoriaId,
         getTodasCategorias,
+        getCategoriaById,
+        archiveCategoria,
+        restoreCategoria,
         getGastos,
         setGastos,
         getBenefitCards,
