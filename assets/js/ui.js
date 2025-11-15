@@ -46,6 +46,171 @@
     function getBenefitLabel(tipo){
         return benefitTypeLabels[tipo] || benefitTypeLabels.outro;
     }
+    const focusableElementSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const currencyMaskFormatter = (typeof Intl !== 'undefined' && Intl.NumberFormat)
+        ? new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : { format: valor => (Math.round((valor || 0) * 100) / 100).toFixed(2) };
+
+    function getFocusableElements(container){
+        if(!container || typeof container.querySelectorAll !== 'function'){
+            return [];
+        }
+        return Array.from(container.querySelectorAll(focusableElementSelector));
+    }
+
+    function createFocusTrap(modalElement, onRequestClose){
+        if(!modalElement || typeof modalElement.addEventListener !== 'function'){
+            return null;
+        }
+        let previouslyFocusedElement = null;
+
+        function handleKeyDown(event){
+            if(event.key === 'Tab'){
+                const focusable = getFocusableElements(modalElement);
+                if(!focusable.length){
+                    return;
+                }
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if(event.shiftKey && document.activeElement === first){
+                    event.preventDefault();
+                    last.focus();
+                } else if(!event.shiftKey && document.activeElement === last){
+                    event.preventDefault();
+                    first.focus();
+                }
+            } else if(event.key === 'Escape' && typeof onRequestClose === 'function'){
+                onRequestClose();
+            }
+        }
+
+        return {
+            activate(){
+                previouslyFocusedElement = document.activeElement;
+                modalElement.addEventListener('keydown', handleKeyDown);
+                queueTask(() => {
+                    const focusable = getFocusableElements(modalElement);
+                    if(focusable.length && typeof focusable[0].focus === 'function'){
+                        focusable[0].focus();
+                    } else if(typeof modalElement.focus === 'function'){
+                        modalElement.setAttribute('tabindex', '-1');
+                        modalElement.focus();
+                    }
+                });
+            },
+            deactivate(){
+                modalElement.removeEventListener('keydown', handleKeyDown);
+                if(previouslyFocusedElement && typeof previouslyFocusedElement.focus === 'function'){
+                    previouslyFocusedElement.focus();
+                }
+            }
+        };
+    }
+
+    function normalizeCurrencyDigits(value){
+        return String(value || '').replace(/\D/g, '');
+    }
+
+    function parseCurrencyString(value){
+        if(typeof value === 'number'){
+            return value;
+        }
+        if(!value){
+            return 0;
+        }
+        const normalized = String(value)
+            .replace(/[^0-9,-]/g, '')
+            .replace(/\.(?=\d)/g, '')
+            .replace(',', '.');
+        const result = parseFloat(normalized);
+        return Number.isNaN(result) ? 0 : result;
+    }
+
+    function setCurrencyInputNumber(input, value){
+        if(!input){
+            return;
+        }
+        if(value === '' || value === null || typeof value === 'undefined'){
+            input.value = '';
+            if(input.dataset){
+                input.dataset.rawValue = '';
+            }
+            return;
+        }
+        const numericValue = typeof value === 'number' ? value : parseCurrencyString(value);
+        if(Number.isNaN(numericValue)){
+            input.value = '';
+            if(input.dataset){
+                input.dataset.rawValue = '';
+            }
+            return;
+        }
+        if(input.dataset){
+            input.dataset.rawValue = numericValue.toFixed(2);
+        }
+        if(typeof currencyMaskFormatter.format === 'function'){
+            input.value = currencyMaskFormatter.format(numericValue);
+        } else {
+            input.value = String(numericValue);
+        }
+    }
+
+    function getCurrencyInputNumber(input){
+        if(!input){
+            return NaN;
+        }
+        if(input.dataset && input.dataset.rawValue){
+            const parsed = parseFloat(input.dataset.rawValue);
+            if(!Number.isNaN(parsed)){
+                return parsed;
+            }
+        }
+        return parseCurrencyString(input.value);
+    }
+
+    function handleCurrencyMaskInput(event){
+        const input = event.target;
+        const digits = normalizeCurrencyDigits(input.value);
+        if(!digits){
+            if(input.dataset){
+                input.dataset.rawValue = '';
+            }
+            input.value = '';
+            return;
+        }
+        const numericValue = parseFloat(digits) / 100;
+        if(input.dataset){
+            input.dataset.rawValue = numericValue.toFixed(2);
+        }
+        if(typeof currencyMaskFormatter.format === 'function'){
+            input.value = currencyMaskFormatter.format(numericValue);
+        } else {
+            input.value = String(numericValue);
+        }
+    }
+
+    function attachCurrencyMask(input){
+        if(!input || (input.dataset && input.dataset.currencyMaskAttached === 'true')){
+            return;
+        }
+        if(input.dataset){
+            input.dataset.currencyMaskAttached = 'true';
+        }
+        if(!input.getAttribute('inputmode')){
+            input.setAttribute('inputmode', 'decimal');
+        }
+        input.addEventListener('input', handleCurrencyMaskInput);
+        input.addEventListener('focus', () => {
+            if(typeof input.select === 'function'){
+                queueTask(() => input.select());
+            }
+        });
+        if(input.value){
+            handleCurrencyMaskInput({ target: input });
+        } else if(input.dataset){
+            input.dataset.rawValue = '';
+        }
+    }
     const basePaymentMethods = [
         { value: 'Dinheiro', label: '💵 Dinheiro', icon: '💵' },
         { value: 'PIX', label: '📱 PIX', icon: '📱' },
@@ -238,6 +403,8 @@
     const inputBeneficioSaldo = document.getElementById('beneficio-saldo');
     const listaBeneficios = document.getElementById('lista-beneficios');
     const selectMetodo = document.getElementById('metodo-pagamento');
+    const valorInput = document.getElementById('valor');
+    const quickValueButtons = document.querySelectorAll('[data-quick-value][data-target-input]');
     const searchHistorico = document.getElementById('search-historico');
     const filterCategoriaHistorico = document.getElementById('filter-categoria-historico');
     const filterMetodoHistorico = document.getElementById('filter-metodo-historico');
@@ -250,11 +417,49 @@
     const conciliacaoBeneficiosResumo = document.getElementById('conciliacao-beneficios-list');
     const conciliacaoGastosList = document.getElementById('conciliacao-gastos-list');
 
+    inicializarMascarasDeMoeda();
+    inicializarBotoesRapidosDeValor();
+
     // Controle de filtros do histórico (precisa existir antes dos handlers que os utilizam)
     let currentView = 'table';
     let gastosOriginais = [];
     let gastosFiltrados = [];
     let recorrentesPendentes = [];
+    let rendaModalFocusTrap = null;
+    let recorrentesModalFocusTrap = null;
+
+    function inicializarMascarasDeMoeda(){
+        [valorInput, inputModalRenda, inputBeneficioSaldo].forEach(campo => attachCurrencyMask(campo));
+    }
+
+    function inicializarBotoesRapidosDeValor(){
+        Array.from(quickValueButtons || []).forEach(botao => {
+            botao.addEventListener('click', () => {
+                const incremento = parseFloat(botao.dataset.quickValue || '0');
+                const alvoId = botao.dataset.targetInput;
+                const alvo = document.getElementById(alvoId);
+                if(!alvo || Number.isNaN(incremento)){
+                    return;
+                }
+                const valorAtual = getCurrencyInputNumber(alvo);
+                const novoValor = Math.max(0, Math.round(((Number.isNaN(valorAtual) ? 0 : valorAtual) + incremento) * 100) / 100);
+                setCurrencyInputNumber(alvo, novoValor);
+                let eventoInput = null;
+                if(typeof Event === 'function'){
+                    eventoInput = new Event('input', { bubbles: true });
+                } else if(document && typeof document.createEvent === 'function'){
+                    eventoInput = document.createEvent('Event');
+                    eventoInput.initEvent('input', true, true);
+                }
+                if(eventoInput && typeof alvo.dispatchEvent === 'function'){
+                    alvo.dispatchEvent(eventoInput);
+                }
+                if(typeof alvo.focus === 'function'){
+                    alvo.focus();
+                }
+            });
+        });
+    }
 
     function resolverCategoriaId(categoriaValor, categoriaIdExistente){
         if(categoriaIdExistente) return categoriaIdExistente;
@@ -775,9 +980,11 @@
         verificarGastosRecorrentes();
         renderRecorrentesPendentes();
         modalRecorrentes.style.display = 'flex';
-        const primeiroBotao = modalRecorrentes.querySelector('.modal-recorrentes-lancar');
-        if(primeiroBotao){
-            setTimeout(() => primeiroBotao.focus(), 100);
+        if(!recorrentesModalFocusTrap){
+            recorrentesModalFocusTrap = createFocusTrap(modalRecorrentes, fecharModalRecorrentes);
+        }
+        if(recorrentesModalFocusTrap){
+            recorrentesModalFocusTrap.activate();
         }
     }
 
@@ -786,6 +993,9 @@
             return;
         }
         modalRecorrentes.style.display = 'none';
+        if(recorrentesModalFocusTrap){
+            recorrentesModalFocusTrap.deactivate();
+        }
     }
 
     function lancarGastoRecorrente(recorrenteId){
@@ -912,16 +1122,24 @@
         if (!modal) return;
         const detalhes = obterRendaDetalhada();
         if (inputModalRenda) {
-            inputModalRenda.value = detalhes.base > 0 ? detalhes.base : '';
+            setCurrencyInputNumber(inputModalRenda, detalhes.base > 0 ? detalhes.base : '');
         }
         renderBenefitCardsList(detalhes);
         modal.style.display = 'flex';
-        setTimeout(() => { if (inputModalRenda) { inputModalRenda.focus(); } }, 100);
+        if(!rendaModalFocusTrap){
+            rendaModalFocusTrap = createFocusTrap(modal, fecharModalRenda);
+        }
+        if(rendaModalFocusTrap){
+            rendaModalFocusTrap.activate();
+        }
     }
-    
+
     function fecharModalRenda() {
         if (modal) {
             modal.style.display = 'none';
+        }
+        if(rendaModalFocusTrap){
+            rendaModalFocusTrap.deactivate();
         }
     }
 
@@ -996,9 +1214,13 @@
             e.preventDefault();
 
             if (inputModalRenda) {
-                let nova = inputModalRenda.value.replace(',', '.');
-                const valor = parseFloat(nova);
-                if (!isNaN(valor) && valor >= 0) {
+                const valorTexto = inputModalRenda.value.trim();
+                const valor = getCurrencyInputNumber(inputModalRenda);
+                if (valorTexto === '' || Number.isNaN(valor) || valor < 0) {
+                    alert('Valor inválido!');
+                    return;
+                }
+                if (valor >= 0) {
                     if (typeof dataService.setRendaBase === 'function') {
                         dataService.setRendaBase(valor, { origem: 'modal-renda' });
                     } else if (typeof dataService.setRenda === 'function') {
@@ -1019,13 +1241,13 @@
             e.preventDefault();
             const nome = inputBeneficioNome ? inputBeneficioNome.value.trim() : '';
             const tipo = selectBeneficioTipo ? selectBeneficioTipo.value : 'outro';
-            const saldoInput = inputBeneficioSaldo ? String(inputBeneficioSaldo.value).replace(',', '.') : '0';
-            const saldo = parseFloat(saldoInput);
+            const saldoTexto = inputBeneficioSaldo ? inputBeneficioSaldo.value.trim() : '';
+            const saldo = getCurrencyInputNumber(inputBeneficioSaldo);
             if (!nome) {
                 alert('Informe o nome do cartão de benefício.');
                 return;
             }
-            if (Number.isNaN(saldo) || saldo < 0) {
+            if (!inputBeneficioSaldo || saldoTexto === '' || Number.isNaN(saldo) || saldo < 0) {
                 alert('Informe um saldo válido para o benefício.');
                 return;
             }
@@ -1053,6 +1275,9 @@
             formBeneficio.reset();
             if (selectBeneficioTipo) {
                 selectBeneficioTipo.value = 'alimentacao';
+            }
+            if (inputBeneficioSaldo) {
+                setCurrencyInputNumber(inputBeneficioSaldo, '');
             }
         });
     }
@@ -1690,7 +1915,9 @@
         formGasto.addEventListener('submit', function(e) {
             e.preventDefault();
             const descricao = document.getElementById('descricao').value.trim();
-            const valorTotal = parseFloat(document.getElementById('valor').value);
+            const valorCampo = valorInput || document.getElementById('valor');
+            const valorTexto = valorCampo ? valorCampo.value.trim() : '';
+            const valorTotal = getCurrencyInputNumber(valorCampo);
             const data = document.getElementById('data').value;
             const parcelas = parseInt(document.getElementById('parcelas').value) || 1;
             const categoriaSelect = document.getElementById('categoria');
@@ -1703,7 +1930,7 @@
             const ehRecorrente = chkRecorrente && chkRecorrente.checked;
             const frequencia = freqRecorrente ? freqRecorrente.value : 'mensal';
 
-            if (!descricao || isNaN(valorTotal) || !data || isNaN(parcelas) || parcelas < 1 || !categoria || !metodoPagamento) return;
+            if (!descricao || !valorCampo || valorTexto === '' || isNaN(valorTotal) || valorTotal < 0 || !data || isNaN(parcelas) || parcelas < 1 || !categoria || !metodoPagamento) return;
             const lista = dataService.getGastos();
             // Corrigido: valor de cada parcela
             const valorParcela = Math.round((valorTotal / parcelas) * 100) / 100;
@@ -1763,9 +1990,12 @@
             if (typeof atualizarDashboard === 'function') {
                 atualizarDashboard();
             }
-            
+
             formGasto.reset();
             document.getElementById('parcelas').value = 1;
+            if(valorCampo){
+                setCurrencyInputNumber(valorCampo, '');
+            }
         });
     }
 
