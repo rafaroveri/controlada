@@ -32,6 +32,8 @@
     const recorrentesKey = 'gastos_recorrentes';
     const configKey = 'config_inicio_mes';
     const benefitCardsKey = 'beneficios_usuario';
+    const benefitConciliationLogKey = 'beneficios_conciliacao_log';
+    const rendaAuditKey = 'renda_auditoria';
 
     const categoriaAPI = categoriasService || {
         getPersonalizadas: () => [],
@@ -39,7 +41,10 @@
         getRemovidas: () => [],
         setRemovidas: () => {},
         generateId: () => Date.now().toString(36),
-        getTodas: () => []
+        getTodas: () => [],
+        saveArquivada: () => {},
+        restaurarCategoria: () => {},
+        getCategoriaById: () => null
     };
 
     const constantsAPI = constants || { DEFAULT_PAYMENT_ICON: '💰' };
@@ -148,6 +153,30 @@
 
     function getNextCycleKey(baseKey){
         return shiftCycleKey(baseKey, 1);
+    function getCycleIntervalForDate(data){
+        const { year, month } = getCycleKeyForDate(data || new Date());
+        if(!Number.isFinite(year) || !Number.isFinite(month)){
+            return { inicio: null, fim: null };
+        }
+        const inicio = new Date(year, month - 1, getInicioMes());
+        const fim = new Date(inicio);
+        fim.setMonth(fim.getMonth() + 1);
+        fim.setDate(fim.getDate() - 1);
+        return { inicio, fim };
+    }
+
+    function getCycleIntervalLabel(data){
+        const { inicio, fim } = getCycleIntervalForDate(data);
+        if(!inicio || !fim){
+            return '';
+        }
+        const precisaAno = inicio.getFullYear() !== fim.getFullYear();
+        const formatar = (date) => {
+            const dia = String(date.getDate()).padStart(2, '0');
+            const mes = String(date.getMonth() + 1).padStart(2, '0');
+            return precisaAno ? `${dia}/${mes}/${date.getFullYear()}` : `${dia}/${mes}`;
+        };
+        return `${formatar(inicio)} a ${formatar(fim)}`;
     }
 
     function getCategoriasPersonalizadas(){
@@ -180,6 +209,41 @@
         return mapa;
     }
 
+    function archiveCategoria(categoria){
+        if(!categoria || !categoria.id){
+            return;
+        }
+        if(typeof categoriaAPI.saveArquivada === 'function'){
+            categoriaAPI.saveArquivada(categoria);
+        } else {
+            const removidas = getCategoriasRemovidas();
+            if(!removidas.some(item => item.id === categoria.id)){
+                removidas.push({ id: categoria.id });
+                setCategoriasRemovidas(removidas);
+            }
+        }
+    }
+
+    function restoreCategoria(categoria){
+        if(!categoria || !categoria.id){
+            return;
+        }
+        if(typeof categoriaAPI.restaurarCategoria === 'function'){
+            categoriaAPI.restaurarCategoria(categoria);
+        } else {
+            const removidas = getCategoriasRemovidas().filter(item => item.id !== categoria.id);
+            setCategoriasRemovidas(removidas);
+        }
+    }
+
+    function getCategoriaById(id){
+        if(typeof categoriaAPI.getCategoriaById === 'function'){
+            return categoriaAPI.getCategoriaById(id);
+        }
+        const todas = getTodasCategorias();
+        return todas.find(cat => cat.id === id) || null;
+    }
+
     function getGastos(){
         const lista = storageUtil.getJSON(gastosKey, []);
         const mapaCategoria = mapCategoriaValorParaId();
@@ -187,6 +251,10 @@
         lista.forEach(gasto => {
             if(!gasto.categoriaId && gasto.categoria && mapaCategoria.has(gasto.categoria)){
                 gasto.categoriaId = mapaCategoria.get(gasto.categoria);
+                atualizado = true;
+            }
+            if(!gasto.id){
+                gasto.id = gerarIdGasto();
                 atualizado = true;
             }
         });
@@ -202,6 +270,11 @@
 
     function getBenefitCards(){
         return storageUtil.getJSON(benefitCardsKey, []);
+    }
+
+    function getBenefitById(id){
+        if(!id) return null;
+        return getBenefitCards().find(card => card.id === id) || null;
     }
 
     function setBenefitCards(lista){
@@ -223,8 +296,58 @@
         return getRendaBase() + getTotalBeneficios();
     }
 
-    function setRendaBase(valor){
-        storageUtil.setNumber(rendaKey, valor);
+    function logRendaAuditoria(entry){
+        if(!entry) return [];
+        const payload = Object.assign({ timestamp: new Date().toISOString() }, entry);
+        if(typeof storageUtil.appendToList === 'function'){
+            return storageUtil.appendToList(rendaAuditKey, payload);
+        }
+        const atual = storageUtil.getJSON(rendaAuditKey, []);
+        atual.push(payload);
+        storageUtil.setJSON(rendaAuditKey, atual);
+        return atual;
+    }
+
+    function getRendaAuditoria(limit){
+        const lista = storageUtil.getJSON(rendaAuditKey, []);
+        if(!Array.isArray(lista)){
+            return [];
+        }
+        if(!limit){
+            return lista;
+        }
+        return lista.slice(Math.max(0, lista.length - limit));
+    }
+
+    function logBenefitConciliacao(entry){
+        if(!entry) return [];
+        const payload = Object.assign({ timestamp: new Date().toISOString() }, entry);
+        if(typeof storageUtil.appendToList === 'function'){
+            return storageUtil.appendToList(benefitConciliationLogKey, payload);
+        }
+        const atual = storageUtil.getJSON(benefitConciliationLogKey, []);
+        atual.push(payload);
+        storageUtil.setJSON(benefitConciliationLogKey, atual);
+        return atual;
+    }
+
+    function getBenefitConciliationLog(){
+        const lista = storageUtil.getJSON(benefitConciliationLogKey, []);
+        return Array.isArray(lista) ? lista : [];
+    }
+
+    function setRendaBase(valor, options = {}){
+        const valorAnterior = getRendaBase();
+        const novoValor = Number.isNaN(parseFloat(valor)) ? 0 : parseFloat(valor);
+        storageUtil.setNumber(rendaKey, novoValor);
+        if(valorAnterior !== novoValor){
+            logRendaAuditoria({
+                tipoAlteracao: 'renda-base',
+                valorAnterior,
+                valorNovo: novoValor,
+                origem: options.origem || 'atualizacao-renda'
+            });
+        }
     }
 
     function setRenda(valor){
@@ -243,19 +366,30 @@
         };
     }
 
-    function addBenefitCard(card){
+    function addBenefitCard(card, options = {}){
         const lista = getBenefitCards();
-        lista.push(card);
+        const saldoInicial = Number.isNaN(parseFloat(card && card.saldo)) ? 0 : parseFloat(card.saldo);
+        const novoCartao = Object.assign({}, card, { saldo: saldoInicial });
+        lista.push(novoCartao);
         setBenefitCards(lista);
+        logRendaAuditoria({
+            tipoAlteracao: 'beneficio-adicionado',
+            valorAnterior: 0,
+            valorNovo: saldoInicial,
+            beneficioId: novoCartao.id,
+            beneficioNome: novoCartao.nome,
+            origem: options.origem || 'cadastro-beneficio'
+        });
     }
 
-    function updateBenefitCard(id, updates){
+    function updateBenefitCard(id, updates, options = {}){
         const lista = getBenefitCards();
         const index = lista.findIndex(item => item.id === id);
         if(index === -1){
             return null;
         }
         const atual = lista[index];
+        const saldoAnterior = parseFloat(atual.saldo || 0) || 0;
         const atualizado = Object.assign({}, atual, updates);
         if(atualizado.saldo !== undefined){
             const parsed = parseFloat(atualizado.saldo);
@@ -263,13 +397,72 @@
         }
         lista[index] = atualizado;
         setBenefitCards(lista);
-        return atualizado;
+        if(saldoAnterior !== lista[index].saldo){
+            logRendaAuditoria({
+                tipoAlteracao: 'beneficio-atualizado',
+                valorAnterior: saldoAnterior,
+                valorNovo: lista[index].saldo,
+                beneficioId: id,
+                beneficioNome: lista[index].nome,
+                origem: options.origem || 'edicao-beneficio'
+            });
+        }
+        return lista[index];
     }
 
     function removeBenefitCard(id){
         const lista = getBenefitCards();
+        const beneficio = lista.find(item => item.id === id);
         const filtrado = lista.filter(item => item.id !== id);
         setBenefitCards(filtrado);
+        if(beneficio){
+            const saldoAnterior = parseFloat(beneficio.saldo || 0) || 0;
+            logRendaAuditoria({
+                tipoAlteracao: 'beneficio-removido',
+                valorAnterior: saldoAnterior,
+                valorNovo: 0,
+                beneficioId: beneficio.id,
+                beneficioNome: beneficio.nome,
+                origem: 'remocao-beneficio'
+            });
+        }
+    }
+
+    function conciliateBenefitWithExpense(benefitId, expenseId, valor, options = {}){
+        const lista = getBenefitCards();
+        const index = lista.findIndex(item => item.id === benefitId);
+        if(index === -1){
+            return null;
+        }
+        const atual = lista[index];
+        const saldoAnterior = parseFloat(atual.saldo || 0) || 0;
+        const valorConciliavel = Math.max(0, parseFloat(valor || 0));
+        if(valorConciliavel <= 0 || saldoAnterior <= 0){
+            return { beneficio: atual, valorConciliado: 0 };
+        }
+        const valorConciliado = Math.min(saldoAnterior, valorConciliavel);
+        const novoSaldo = Math.round((saldoAnterior - valorConciliado) * 100) / 100;
+        lista[index] = Object.assign({}, atual, { saldo: novoSaldo });
+        setBenefitCards(lista);
+        const beneficioAtualizado = lista[index];
+        logBenefitConciliacao({
+            beneficioId: benefitId,
+            beneficioNome: beneficioAtualizado.nome,
+            gastoId: expenseId || null,
+            valorConciliado,
+            saldoAnterior,
+            saldoAtual: novoSaldo,
+            origem: options.origem || 'conciliacao-beneficio'
+        });
+        logRendaAuditoria({
+            tipoAlteracao: 'beneficio-conciliado',
+            valorAnterior: saldoAnterior,
+            valorNovo: novoSaldo,
+            beneficioId: benefitId,
+            beneficioNome: beneficioAtualizado.nome,
+            origem: options.origem || 'conciliacao-beneficio'
+        });
+        return { beneficio: beneficioAtualizado, valorConciliado };
     }
 
     function getMetas(){
@@ -529,15 +722,21 @@
         getCurrentCycleKeyStr,
         getPreviousCycleKey,
         getNextCycleKey,
+        getCycleIntervalForDate,
+        getCycleIntervalLabel,
         getCategoriasPersonalizadas,
         setCategoriasPersonalizadas,
         getCategoriasRemovidas,
         setCategoriasRemovidas,
         generateCategoriaId,
         getTodasCategorias,
+        getCategoriaById,
+        archiveCategoria,
+        restoreCategoria,
         getGastos,
         setGastos,
         getBenefitCards,
+        getBenefitById,
         setBenefitCards,
         getTotalBeneficios,
         getRendaBase,
@@ -548,6 +747,7 @@
         addBenefitCard,
         updateBenefitCard,
         removeBenefitCard,
+        conciliateBenefitWithExpense,
         getMetas,
         setMetas,
         getGastosRecorrentes,
@@ -569,6 +769,10 @@
         getProjecaoMensal,
         getUltimosGastosImportantes,
         findExpensesByCategoryId,
+        logRendaAuditoria,
+        getRendaAuditoria,
+        logBenefitConciliacao,
+        getBenefitConciliationLog,
         constants: constantsAPI
     };
 });

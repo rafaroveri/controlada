@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const hasRemote = backendService && backendService.isRemoteAvailable;
     const loginFeedback = document.getElementById('login-feedback');
     const cadastroFeedback = document.getElementById('cadastro-feedback');
+    const authWatchdog = window.authWatchdog;
 
     function clearFeedback(target){
         if(!target){
@@ -74,6 +75,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if(code === 'NOT_AUTHENTICATED' || code === 401){
             return 'Sessão expirada. Faça login novamente.';
         }
+        if(code === 'NETWORK_TIMEOUT'){
+            return 'A conexão com o servidor demorou muito para responder. Tente novamente em instantes.';
+        }
         if(code === 'NETWORK_ERROR'){
             return 'Não foi possível comunicar com o servidor. Verifique sua conexão.';
         }
@@ -94,11 +98,20 @@ document.addEventListener('DOMContentLoaded', function() {
         return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
+    function markOfflineAuthenticated(){
+        if(authWatchdog && typeof authWatchdog.recordAuth === 'function'){
+            authWatchdog.recordAuth();
+            return;
+        }
+        localStorage.setItem('autenticado', 'true');
+        localStorage.setItem('autenticado_at', String(Date.now()));
+    }
+
     function handleLocalLogin(usuario, senha){
         return hashPassword(senha).then(senhaHash => {
             const usuarios = storageUtil.getJSON('usuarios', {});
             if((usuario === 'admin' && senhaHash === ADMIN_HASH) || (usuarios[usuario] && usuarios[usuario] === senhaHash)){
-                localStorage.setItem('autenticado', 'true');
+                markOfflineAuthenticated();
                 window.location.href = 'index.html';
                 return true;
             }
@@ -153,7 +166,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (error) {
                 console.error('Erro ao efetuar login', error);
-                const message = hasRemote ? mapApiError(error) : (error.message || 'Não foi possível efetuar login.');
+                let message = hasRemote ? mapApiError(error) : (error.message || 'Não foi possível efetuar login.');
+                if(hasRemote && (error?.code === 'NETWORK_ERROR' || error?.code === 'NETWORK_TIMEOUT')){
+                    message += ' Seus dados podem ser acessados em modo offline limitado, mas não serão sincronizados até que a conexão seja restabelecida.';
+                }
                 showFeedback(loginFeedback, message);
             } finally {
                 setLoading(submitButton, false);
@@ -220,7 +236,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (error) {
                 console.error('Erro ao cadastrar usuário', error);
-                const message = hasRemote ? mapApiError(error) : (error.message || 'Não foi possível concluir o cadastro.');
+                let message = hasRemote ? mapApiError(error) : (error.message || 'Não foi possível concluir o cadastro.');
+                if(hasRemote && (error?.code === 'NETWORK_ERROR' || error?.code === 'NETWORK_TIMEOUT')){
+                    message += ' O cadastro em modo offline não está disponível, tente novamente quando a conexão estabilizar.';
+                }
                 showFeedback(cadastroFeedback, message);
             } finally {
                 setLoading(submitButton, false);

@@ -593,6 +593,8 @@ body[data-theme="dark"] .beneficio-empty {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
     max-width: 1400px;
     width: 100%;
     margin: 0 auto;
@@ -650,6 +652,50 @@ body[data-theme="dark"] .beneficio-empty {
     font-weight: 600;
     font-size: 0.95rem;
     margin-right: 0.25rem;
+}
+
+.sync-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--dark-moss-green);
+    min-height: 34px;
+    margin-left: auto;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+.sync-status-badge .sync-indicator-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--dark-moss-green);
+    opacity: 0.8;
+}
+
+.sync-status-badge.is-syncing .sync-indicator-dot {
+    animation: sync-pulse 1.2s infinite ease-in-out;
+    background: var(--olive-green);
+}
+
+@keyframes sync-pulse {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+@media (max-width: 1024px) {
+    .sync-status-badge {
+        width: 100%;
+        justify-content: center;
+        margin-left: 0;
+        order: 4;
+    }
 }
 
 .nav-list {
@@ -1637,6 +1683,33 @@ body[data-theme="dark"] .beneficio-empty {
     font-weight: 600;
     color: rgba(77, 102, 25, 0.85);
     margin: 0;
+/* Respeita usuários que preferem menos movimento e animações intensas */
+@media (prefers-reduced-motion: reduce) {
+    body {
+        scroll-behavior: auto;
+    }
+
+    .hero-icon .floating-money,
+    .hero-icon .floating-coins,
+    .hero-icon .hero-main-icon,
+    .floating-money,
+    .floating-coins,
+    .stat-card,
+    .modern-form-container,
+    .history-card,
+    .dashboard-card,
+    .timeline-item,
+    .beneficio-item,
+    .meta-progress-bar,
+    .meta-progress,
+    .chart-card,
+    .bottom-nav button,
+    .goal-card,
+    .tab-btn {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+    }
 }
 
 /* Barra de progresso da meta */
