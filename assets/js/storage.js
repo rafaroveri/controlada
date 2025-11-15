@@ -24,6 +24,16 @@
         }
     }
 
+    function sanitizeList(value){
+        if(Array.isArray(value)){
+            return value;
+        }
+        if(value !== undefined){
+            console.warn('Valor de lista inválido detectado. Reiniciando a coleção.');
+        }
+        return [];
+    }
+
     const StorageUtil = {
         getNumber(key){
             const raw = localStorage.getItem(key);
@@ -54,6 +64,12 @@
         setJSON(key, value){
             localStorage.setItem(key, JSON.stringify(value));
             persist(key, value);
+        },
+        appendToList(key, item){
+            const listaAtual = sanitizeList(this.getJSON(key, []));
+            const novaLista = [...listaAtual, item];
+            this.setJSON(key, novaLista);
+            return novaLista;
         },
         remove(key){
             localStorage.removeItem(key);

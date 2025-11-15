@@ -49,7 +49,8 @@
             return categoriasPadrao.slice();
         },
         getPersonalizadas(){
-            return storageUtil.getJSON('categorias_usuario', []);
+            ensureLists();
+            return storage.getJSON('categorias_usuario', []);
         },
         setPersonalizadas(lista){
             storageUtil.setJSON('categorias_usuario', Array.isArray(lista) ? lista : []);
@@ -135,6 +136,36 @@
         },
         generateId(){
             return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).substring(2));
+        },
+        createCategoria({ nome, cor = '#cccccc', valor } = {}){
+            const id = this.generateId();
+            const finalValor = normalizeValor(nome, valor);
+            const categoria = {
+                id,
+                nome: nome || 'Nova categoria',
+                valor: finalValor,
+                cor
+            };
+            const lista = this.getPersonalizadas();
+            const atualizada = [...lista, categoria];
+            this.setPersonalizadas(atualizada);
+            const removidas = this.getRemovidas().filter(removidaId => removidaId !== id);
+            this.setRemovidas(removidas);
+            return categoria;
+        },
+        archiveCategoria(id){
+            if(!id) return;
+            const lista = this.getPersonalizadas().filter(cat => cat.id !== id);
+            this.setPersonalizadas(lista);
+            const removidas = this.getRemovidas();
+            if(!removidas.includes(id)){
+                this.setRemovidas([...removidas, id]);
+            }
+        },
+        restoreCategoria(id){
+            if(!id) return;
+            const removidas = this.getRemovidas().filter(item => item !== id);
+            this.setRemovidas(removidas);
         },
         getTodas(){
             const removidas = new Set(getRemovedIds());

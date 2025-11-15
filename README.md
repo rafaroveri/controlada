@@ -174,12 +174,27 @@ Se você encontrar algum problema ou tiver sugestões, por favor abra uma [issue
 
 ## 🧪 Testes
 
-Para executar os testes unitários utilize o npm:
+O projeto possui cobertura automatizada para os fluxos críticos de armazenamento, categorias personalizadas, autenticação básica e cadastro de gastos.
+
+- **Testes unitários (Jest)** – cobrem utilidades como `storageUtil`, `categoriasService`, `uiManager` e as regras financeiras em `main.js`.
+- **Teste E2E leve (Playwright)** – valida o fluxo completo de cadastro/login, registro de um gasto no formulário principal e atualização da sobra no painel.
+
+### Executando
 
 ```bash
 npm install
-npm test
+
+# testes unitários
+npm run test:unit
+
+# primeira vez: instalar os navegadores usados pelo Playwright
+npx playwright install --with-deps chromium
+
+# teste e2e
+npm run test:e2e
 ```
+
+> O teste E2E roda em modo headless e utiliza os arquivos `login.html` e `index.html` diretamente via protocolo `file://`, tornando fácil validar o fluxo mesmo sem backend ativo.
 
 ---
 
