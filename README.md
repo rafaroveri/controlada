@@ -103,6 +103,9 @@ npx http-server
 - Configurar dia de início do ciclo financeiro
 - Gerenciar categorias personalizadas
 - Configurações de conta
+- Banner de confirmação exibe o intervalo vigente do ciclo financeiro sempre que o dia inicial é atualizado.
+- Botão "Sincronizar agora" permite disparar o full sync manual com o backend e mostra mensagens de progresso/erro.
+- Seção "Categorias arquivadas" lista itens removidos e possibilita restaurá-los preservando cor, nome e ícone.
 
 ## 🔌 API REST (Node/Express)
 
@@ -171,12 +174,27 @@ Se você encontrar algum problema ou tiver sugestões, por favor abra uma [issue
 
 ## 🧪 Testes
 
-Para executar os testes unitários utilize o npm:
+O projeto possui cobertura automatizada para os fluxos críticos de armazenamento, categorias personalizadas, autenticação básica e cadastro de gastos.
+
+- **Testes unitários (Jest)** – cobrem utilidades como `storageUtil`, `categoriasService`, `uiManager` e as regras financeiras em `main.js`.
+- **Teste E2E leve (Playwright)** – valida o fluxo completo de cadastro/login, registro de um gasto no formulário principal e atualização da sobra no painel.
+
+### Executando
 
 ```bash
 npm install
-npm test
+
+# testes unitários
+npm run test:unit
+
+# primeira vez: instalar os navegadores usados pelo Playwright
+npx playwright install --with-deps chromium
+
+# teste e2e
+npm run test:e2e
 ```
+
+> O teste E2E roda em modo headless e utiliza os arquivos `login.html` e `index.html` diretamente via protocolo `file://`, tornando fácil validar o fluxo mesmo sem backend ativo.
 
 ---
 

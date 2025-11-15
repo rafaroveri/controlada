@@ -29,6 +29,10 @@
                 <span class="recorrentes-alert-icon" aria-hidden="true">🔔</span>
                 <span class="recorrentes-alert-badge" aria-hidden="true"></span>
             </button>
+            <div class="sync-status-badge" id="sync-status-badge" role="status" aria-live="polite" aria-busy="false">
+                <span class="sync-indicator-dot" aria-hidden="true"></span>
+                <span class="sync-status-text">Nunca sincronizado</span>
+            </div>
             <ul class="nav-list">
                 <li><a href="#" data-section="tela-gastos">Gastos</a></li>
                 <li><a href="#" data-section="tela-investimentos">Investimentos</a></li>
@@ -99,14 +103,28 @@
                                 <p class="hero-subtitle">Registre seus gastos de forma inteligente e organizada</p>
                             </div>
                             <div class="hero-stats">
-                                <div class="stat-card">
-                                    <div class="stat-icon">📊</div>
+                                <div class="stat-card" data-quick-filter="mes-atual">
+                                    <div class="stat-icon">💚</div>
                                     <div class="stat-info">
-                                        <span class="stat-number" id="gastos-hoje">0</span>
-                                        <span class="stat-label">Gastos Hoje</span>
+                                        <span class="stat-label">Sobra do ciclo</span>
+                                        <span class="stat-number" id="sobra-mes">R$ 0,00</span>
                                     </div>
                                 </div>
-                                <div class="stat-card">
+                                <div class="stat-card" data-quick-filter="mes-atual">
+                                    <div class="stat-icon">📅</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Gastos do ciclo</span>
+                                        <span class="stat-number" id="gastos-mes">R$ 0,00</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card" data-quick-filter="hoje">
+                                    <div class="stat-icon">📊</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Gastos Hoje</span>
+                                        <span class="stat-number" id="gastos-hoje">0</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card" data-quick-filter="mes-atual">
                                     <div class="stat-icon">🎯</div>
                                     <div class="stat-info">
                                         <span class="stat-number" id="meta-mes">-</span>
@@ -146,14 +164,20 @@
                                     <div class="input-row">
                                         <div class="input-group amount">
                                             <div class="input-icon">💵</div>
-                                            <div class="input-content">
+                                        <div class="input-content">
                                                 <label for="valor">Valor</label>
-                                                <input type="number" id="valor" name="valor" step="0.01" min="0" required
+                                                <input type="text" id="valor" name="valor" required
                                                        placeholder="0,00"
-                                                       class="modern-input amount-input" inputmode="decimal"
+                                                       class="modern-input amount-input"
+                                                       inputmode="decimal"
                                                        autocomplete="transaction-amount" aria-describedby="valor-hint">
                                                 <div class="input-border"></div>
                                                 <span class="currency-symbol">R$</span>
+                                                <!-- Acesso mobile: botões rápidos para preencher valores frequentes -->
+                                                <div class="mobile-quick-value-container" data-target-input="valor" aria-label="Sugestões rápidas de valor">
+                                                    <button type="button" class="mobile-quick-value-btn" data-quick-value="50" data-target-input="valor" aria-label="Adicionar cinquenta reais">+ R$ 50</button>
+                                                    <button type="button" class="mobile-quick-value-btn" data-quick-value="100" data-target-input="valor" aria-label="Adicionar cem reais">+ R$ 100</button>
+                                                </div>
                                             </div>
                                             <p class="field-hint" id="valor-hint">Informe o valor em reais, utilizando vírgula ou ponto para separar os centavos.</p>
                                         </div>
@@ -452,7 +476,7 @@
                                         <span class="stat-number" id="maior-gasto">R$ 0,00</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="stat-card">
                                     <div class="stat-icon">🏆</div>
                                     <div class="stat-info">
@@ -460,7 +484,7 @@
                                         <span class="stat-number" id="categoria-dominante">-</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="stat-card">
                                     <div class="stat-icon">📊</div>
                                     <div class="stat-info">
@@ -468,12 +492,26 @@
                                         <span class="stat-number" id="tendencia-gastos">-</span>
                                     </div>
                                 </div>
-                                
+
                                 <div class="stat-card">
                                     <div class="stat-icon">🔮</div>
                                     <div class="stat-info">
                                         <span class="stat-label">Projeção Mensal</span>
                                         <span class="stat-number" id="projecao-mensal">R$ 0,00</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card" data-quick-filter="beneficios">
+                                    <div class="stat-icon">🎁</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Benefícios usados</span>
+                                        <span class="stat-number" id="beneficios-usados">R$ 0,00</span>
+                                    </div>
+                                </div>
+                                <div class="stat-card" data-quick-filter="cartao-credito">
+                                    <div class="stat-icon">💳</div>
+                                    <div class="stat-info">
+                                        <span class="stat-label">Cartão de crédito</span>
+                                        <span class="stat-number" id="credito-usado">R$ 0,00</span>
                                     </div>
                                 </div>
                             </div>
@@ -488,13 +526,25 @@
                                         <h4>💳 Métodos de Pagamento</h4>
                                         <div class="insight-icon">📊</div>
                                     </div>
-                                    <div class="insight-body">
-                                        <canvas id="chart-metodos" width="300" height="200"></canvas>
-                                        <table id="chart-metodos-table" class="chart-data-table visually-hidden" aria-live="polite">
-                                            <caption>Distribuição dos métodos de pagamento</caption>
-                                            <thead></thead>
-                                            <tbody></tbody>
-                                        </table>
+                                    <div class="insight-body pagamentos-grid">
+                                        <div class="pagamento-chart">
+                                            <h5 class="chart-subtitle">Participação por método</h5>
+                                            <canvas id="chart-metodos" width="300" height="200"></canvas>
+                                            <table id="chart-metodos-table" class="chart-data-table visually-hidden" aria-live="polite">
+                                                <caption>Distribuição dos métodos de pagamento</caption>
+                                                <thead></thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
+                                        <div class="pagamento-chart">
+                                            <h5 class="chart-subtitle">Benefícios x recursos próprios</h5>
+                                            <canvas id="chart-beneficios" width="300" height="200"></canvas>
+                                            <table id="chart-beneficios-table" class="chart-data-table visually-hidden" aria-live="polite">
+                                                <caption>Comparativo de gastos com benefícios</caption>
+                                                <thead></thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -601,6 +651,16 @@
                         <h2>Configurações</h2>
                     </div>
                     <div class="config-content">
+                        <div class="config-sync-card">
+                            <div>
+                                <h3>Sincronização manual</h3>
+                                <p>Use quando precisar garantir que os dados locais e remotos estejam alinhados.</p>
+                            </div>
+                            <button type="button" id="btn-full-sync" class="btn-salvar-config btn-full-sync">
+                                🔄 Sincronizar agora
+                            </button>
+                        </div>
+                        <div id="config-feedback" class="config-feedback-region" role="status" aria-live="polite"></div>
                         <form id="form-config" class="config-form">
                             <div class="form-group">
                                 <label for="dia-inicio-mes">Dia de início do mês financeiro:</label>
@@ -608,11 +668,35 @@
                             </div>
                             <button type="submit" class="btn-salvar-config">Salvar</button>
                         </form>
+                        <section class="archived-categories" aria-labelledby="titulo-categorias-arquivadas">
+                            <div class="archived-header">
+                                <div>
+                                    <h3 id="titulo-categorias-arquivadas">Categorias arquivadas</h3>
+                                    <p>Visualize e restaure categorias removidas anteriormente.</p>
+                                </div>
+                            </div>
+                            <div id="lista-categorias-arquivadas" class="lista-categorias-arquivadas" aria-live="polite"></div>
+                        </section>
                         <h3 style="margin-top:2rem;">Metas por Categoria</h3>
                         <form id="form-metas" class="config-form">
                             <div id="metas-container"></div>
                             <button type="submit" class="btn-salvar-config">Salvar Metas</button>
                         </form>
+                        <div class="config-extra-grid">
+                            <section class="auditoria-card">
+                                <div class="auditoria-card-header">
+                                    <div>
+                                        <h3>Últimas alterações na renda</h3>
+                                        <p class="auditoria-description">Acompanhe os ajustes realizados na renda base e nos benefícios corporativos.</p>
+                                    </div>
+                                    <button type="button" id="abrir-conciliacao-beneficios" class="btn-conciliacao">
+                                        💳 Conciliação de benefícios
+                                    </button>
+                                </div>
+                                <p id="auditoria-renda-empty" class="auditoria-empty">Nenhuma alteração registrada ainda.</p>
+                                <ul id="lista-auditoria-renda" class="auditoria-list"></ul>
+                            </section>
+                        </div>
                     </div>
                     <!-- Conteúdo de configurações futuramente -->
                 </section>
@@ -641,17 +725,27 @@
 
     <div class="sidebar-overlay" id="sidebar-overlay" hidden></div>
 
+    <template id="template-config-banner">
+        <div class="config-banner">
+            <div class="config-banner-content">
+                <strong class="config-banner-title"></strong>
+                <p class="config-banner-text"></p>
+            </div>
+            <button type="button" class="config-banner-close" aria-label="Fechar aviso">×</button>
+        </div>
+    </template>
+
     <div id="modal-editar-renda" class="modal-editar-renda" style="display:none;">
-        <div class="modal-editar-renda-content">
+        <div class="modal-editar-renda-content" role="dialog" aria-modal="true" aria-labelledby="modal-renda-title">
             <span class="modal-editar-renda-close" id="modal-editar-renda-close">&times;</span>
-            <h3>Configurar renda e benefícios</h3>
+            <h3 id="modal-renda-title">Configurar renda e benefícios</h3>
             <div class="modal-renda-body">
                 <section class="modal-renda-section">
                     <h4>Renda base</h4>
                     <p class="modal-renda-description">Defina aqui sua renda fixa mensal. Esse valor será somado aos benefícios ativos.</p>
                     <form id="form-modal-renda" class="modal-renda-form">
                         <label for="input-modal-renda">Renda mensal fixa (R$)</label>
-                        <input type="number" id="input-modal-renda" name="input-modal-renda" step="0.01" min="0" required>
+                        <input type="text" id="input-modal-renda" name="input-modal-renda" inputmode="decimal" required placeholder="0,00">
                         <button type="submit" class="modal-editar-renda-salvar">Salvar renda</button>
                     </form>
                 </section>
@@ -683,7 +777,7 @@
                             </div>
                             <div class="form-beneficio-field">
                                 <label for="beneficio-saldo">Saldo atual (R$)</label>
-                                <input type="number" id="beneficio-saldo" name="beneficio-saldo" step="0.01" min="0" required>
+                                <input type="text" id="beneficio-saldo" name="beneficio-saldo" inputmode="decimal" required placeholder="0,00">
                             </div>
                         </div>
                         <button type="submit" class="modal-beneficio-adicionar">Adicionar cartão</button>
@@ -731,7 +825,28 @@
             </div>
         </div>
     </div>
+    <div id="modal-conciliacao-beneficios" class="modal-editar-renda" style="display:none;">
+        <div class="modal-editar-renda-content modal-conciliacao-content" role="dialog" aria-modal="true" aria-labelledby="modal-conciliacao-titulo">
+            <span class="modal-editar-renda-close" id="modal-conciliacao-close">&times;</span>
+            <h3 id="modal-conciliacao-titulo">Conciliação de benefícios</h3>
+            <p class="modal-renda-description">Relacione os últimos gastos pagos com cartões corporativos e baixe os valores diretamente do saldo de cada benefício.</p>
+            <div class="modal-conciliacao-body">
+                <div class="conciliacao-resumo">
+                    <h4>Benefícios cadastrados</h4>
+                    <div id="conciliacao-beneficios-list" class="conciliacao-beneficios-list"></div>
+                </div>
+                <div class="conciliacao-gastos-wrapper">
+                    <h4>Gastos vinculados</h4>
+                    <div id="conciliacao-gastos-list" class="conciliacao-gastos-list"></div>
+                </div>
+            </div>
+            <div class="modal-editar-renda-actions">
+                <button type="button" class="modal-editar-renda-cancelar" id="modal-conciliacao-fechar">Fechar</button>
+            </div>
+        </div>
+    </div>
 
+    <script src="assets/js/auth-watchdog.js" defer></script>
     <script src="assets/js/backend-service.js" defer></script>
     <script src="assets/js/storage.js" defer></script>
     <script src="assets/js/categories.js" defer></script>

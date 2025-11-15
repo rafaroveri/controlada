@@ -14,12 +14,15 @@
     let categoriaCanvasRef = null;
     let mensalCanvasRef = null;
     let metodosCanvasRef = null;
+    let beneficiosCanvasRef = null;
     let categoriaTableRef = null;
     let mensalTableRef = null;
     let metodosTableRef = null;
+    let beneficiosTableRef = null;
     let chartCategoria = null;
     let chartMensal = null;
     let chartMetodos = null;
+    let chartBeneficios = null;
     let chartJsPromise = null;
 
     const categoryColors = [
@@ -152,9 +155,11 @@
         categoriaCanvasRef = options.categoriaCanvas || categoriaCanvasRef;
         mensalCanvasRef = options.mensalCanvas || mensalCanvasRef;
         metodosCanvasRef = options.metodosCanvas || metodosCanvasRef;
+        beneficiosCanvasRef = options.beneficiosCanvas || beneficiosCanvasRef;
         categoriaTableRef = options.categoriaTable || categoriaTableRef;
         mensalTableRef = options.mensalTable || mensalTableRef;
         metodosTableRef = options.metodosTable || metodosTableRef;
+        beneficiosTableRef = options.beneficiosTable || beneficiosTableRef;
 
         [categoriaTableRef, mensalTableRef, metodosTableRef].forEach(table => {
             if(table && table.querySelector && !table.dataset.baseCaption){
@@ -460,9 +465,9 @@
         const mesAno = getSelectedMesAno();
         const distribuicao = dataService.getDistribuicaoMetodosPagamento(mesAno);
         const labels = Object.keys(distribuicao.valores);
-        const dataset = labels.map(label => {
-            const percentual = distribuicao.percentuais[label];
-            return Number.isFinite(percentual) ? percentual : 0;
+        const valores = labels.map(label => {
+            const numero = parseFloat(distribuicao.valores[label] || 0);
+            return Number.isFinite(numero) ? numero : 0;
         });
         const tableRows = labels.map(label => [
             label,
@@ -486,17 +491,18 @@
             metodosCanvasRef.style.display = '';
         }
 
-        const colors = [
-            'rgba(154, 205, 50, 0.8)',
-            'rgba(77, 102, 25, 0.8)',
-            'rgba(178, 190, 181, 0.8)',
-            'rgba(154, 205, 50, 0.6)',
-            'rgba(77, 102, 25, 0.6)'
-        ];
+        const colors = labels.map((_, index) => {
+            const scheme = categoryColors[index % categoryColors.length];
+            return scheme.start;
+        });
+
+        const gridColor = 'rgba(77, 102, 25, 0.15)';
+        const borderColor = 'rgba(77, 102, 25, 0.3)';
 
         if(chartMetodos){
             chartMetodos.data.labels = labels;
-            chartMetodos.data.datasets[0].data = dataset;
+            chartMetodos.data.datasets[0].data = valores;
+            chartMetodos.data.datasets[0].backgroundColor = colors;
             chartMetodos.update();
             return Promise.resolve(chartMetodos);
         }
@@ -507,28 +513,46 @@
 
         const createChart = () => {
             chartMetodos = new global.Chart(metodosCanvasRef, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
                     labels,
                     datasets: [{
-                        data: dataset,
-                        backgroundColor: colors.slice(0, labels.length),
-                        borderColor: 'rgba(255, 255, 255, 0.8)',
-                        borderWidth: 2
+                        label: 'Total por método',
+                        data: valores,
+                        backgroundColor: colors,
+                        borderRadius: 12,
+                        borderSkipped: false,
+                        maxBarThickness: 38
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 15,
-                                font: { size: 11 }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: gridColor,
+                                borderColor
+                            },
+                            ticks: {
+                                color: '#4D6619',
+                                callback: value => `R$ ${Number(value).toFixed(0)}`
                             }
                         },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#4D6619',
+                                maxRotation: 25,
+                                minRotation: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
                                 label: function(context){
@@ -552,11 +576,108 @@
         return ensureChartJs().then(createChart).catch(() => null);
     }
 
+    function renderBeneficiosChart(){
+        const mesAno = getSelectedMesAno();
+        const resumo = dataService.getResumoPagamentosPorOrigem(mesAno) || { beneficios: 0, cartaoCredito: 0, recursosProprios: 0, total: 0 };
+        const grupos = [
+            { label: 'Benefícios', valor: resumo.beneficios, cor: '#9ACD32' },
+            { label: 'Cartão de crédito', valor: resumo.cartaoCredito, cor: '#FF8E8E' },
+            { label: 'Recursos próprios', valor: resumo.recursosProprios, cor: '#45B7B8' }
+        ];
+
+        const ativos = grupos.filter(item => item.valor > 0);
+        const labels = ativos.map(item => item.label);
+        const valores = ativos.map(item => item.valor);
+        const cores = ativos.map(item => item.cor);
+
+        const tableRows = grupos.map(item => [
+            item.label,
+            dataService.formatCurrency(item.valor),
+            resumo.total > 0 ? `${((item.valor / resumo.total) * 100).toFixed(1)}%` : '0%'
+        ]);
+
+        updateDataTable(beneficiosTableRef, ['Origem', 'Valor', 'Participação'], tableRows, {
+            emptyMessage: 'Nenhum gasto registrado para este período.',
+            captionSuffix: formatMesAnoLabel(mesAno)
+        });
+
+        if(!labels.length){
+            chartBeneficios = destroyChart(chartBeneficios);
+            if(beneficiosCanvasRef){
+                beneficiosCanvasRef.style.display = 'none';
+            }
+            return Promise.resolve(null);
+        }
+
+        if(beneficiosCanvasRef){
+            beneficiosCanvasRef.style.display = '';
+        }
+
+        if(chartBeneficios){
+            chartBeneficios.data.labels = labels;
+            chartBeneficios.data.datasets[0].data = valores;
+            chartBeneficios.data.datasets[0].backgroundColor = cores;
+            chartBeneficios.update();
+            return Promise.resolve(chartBeneficios);
+        }
+
+        if(!beneficiosCanvasRef || !isCanvasVisible(beneficiosCanvasRef)){
+            return Promise.resolve(null);
+        }
+
+        const createChart = () => {
+            chartBeneficios = new global.Chart(beneficiosCanvasRef, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: valores,
+                        backgroundColor: cores,
+                        borderColor: '#fff',
+                        borderWidth: 3,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context){
+                                    const origem = context.label || '';
+                                    const valor = dataService.formatCurrency(context.parsed);
+                                    const percentual = resumo.total > 0 ? ((context.parsed / resumo.total) * 100).toFixed(1) : '0.0';
+                                    return `${origem}: ${valor} (${percentual}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            return chartBeneficios;
+        };
+
+        if(global.Chart){
+            return Promise.resolve(createChart());
+        }
+
+        return ensureChartJs().then(createChart).catch(() => null);
+    }
+
     function refreshAll(){
         return Promise.all([
             renderCategoriaChart(),
             renderMensalChart(),
-            renderMetodosChart()
+            renderMetodosChart(),
+            renderBeneficiosChart()
         ]);
     }
 
@@ -565,6 +686,7 @@
         renderCategoriaChart,
         renderMensalChart,
         renderMetodosChart,
+        renderBeneficiosChart,
         refreshAll
     };
 });
