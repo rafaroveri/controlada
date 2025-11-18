@@ -4,6 +4,7 @@
     const API_BASE_URL = typeof config.API_BASE_URL === 'string' ? config.API_BASE_URL.trim() : '';
     const STORAGE_PREFIX = typeof config.STORAGE_PREFIX === 'string' ? config.STORAGE_PREFIX : 'controlada_';
     const TOKEN_STORAGE_KEY = `${STORAGE_PREFIX}auth_token`;
+    const REFRESH_TOKEN_STORAGE_KEY = `${STORAGE_PREFIX}auth_refresh_token`;
     const USER_STORAGE_KEY = `${STORAGE_PREFIX}auth_user`;
     const REQUEST_TIMEOUT_MS = Number(config.API_TIMEOUT_MS) > 0 ? Number(config.API_TIMEOUT_MS) : 15000;
     const watchdog = global.authWatchdog || null;
@@ -29,6 +30,7 @@
     const isRemoteAvailable = hasFetch && hasApiBase;
 
     let lastSyncPromise = null;
+    let refreshPromise = null;
     const authListeners = new Set();
 
     function ensureLocalStorage(){
@@ -125,6 +127,15 @@
         }
     }
 
+    function getStoredRefreshToken(){
+        try {
+            return localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+        } catch (error) {
+            console.warn('Não foi possível acessar o refresh token armazenado.', error);
+            return null;
+        }
+    }
+
     function storeToken(token){
         try {
             if(token){
@@ -134,6 +145,18 @@
             }
         } catch (error) {
             console.warn('Não foi possível atualizar o token de autenticação.', error);
+        }
+    }
+
+    function storeRefreshToken(token){
+        try {
+            if(token){
+                localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, token);
+            } else {
+                localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+            }
+        } catch (error) {
+            console.warn('Não foi possível atualizar o refresh token.', error);
         }
     }
 
@@ -163,6 +186,7 @@
         try {
             LOCAL_KEYS.forEach(key => localStorage.removeItem(key));
             storeToken(null);
+            storeRefreshToken(null);
             storeUser(null);
             clearOfflineAuth();
         } catch (error) {
@@ -180,7 +204,76 @@
         });
     }
 
-    async function request(path, { method = 'GET', body = undefined, headers = {} } = {}){
+    // Centraliza o armazenamento dos tokens e do usuário retornado pela API para
+    // que qualquer fluxo (login, registro ou refresh) reutilize a mesma lógica.
+    function persistAuthSession(payload = {}, { notify = true } = {}){
+        const { token, refreshToken, user } = payload || {};
+        if(typeof token !== 'undefined'){
+            storeToken(token || null);
+        }
+        if(typeof refreshToken !== 'undefined'){
+            storeRefreshToken(refreshToken || null);
+        }
+        if(typeof user !== 'undefined'){
+            storeUser(user || null);
+            if(notify){
+                notifyAuthListeners(user || null);
+            }
+        }
+    }
+
+    // Remove dados locais e gera um erro padronizado usado nos fluxos de expiração.
+    function handleUnauthorized(message){
+        clearLocalData();
+        notifyAuthListeners(null);
+        const unauthorizedError = new Error(message || 'Sessão expirada. Faça login novamente.');
+        unauthorizedError.code = 'NOT_AUTHENTICATED';
+        throw unauthorizedError;
+    }
+
+    // Garante que formulários JSON tenham o cabeçalho correto sem duplicar lógica.
+    function applyJsonHeaders(headers){
+        if(!headers.has('Content-Type')){
+            headers.set('Content-Type', 'application/json');
+        }
+    }
+
+    // Atualiza o access token utilizando o refresh token armazenado. Chamadas
+    // concorrentes compartilham a mesma promise para evitar múltiplas requisições.
+    async function refreshSessionToken(){
+        if(!isRemoteAvailable){
+            throw new Error('API remota não configurada.');
+        }
+        if(refreshPromise){
+            return refreshPromise;
+        }
+        refreshPromise = (async () => {
+            const storedRefresh = getStoredRefreshToken();
+            if(!storedRefresh){
+                const error = new Error('Refresh token indisponível.');
+                error.code = 'NOT_AUTHENTICATED';
+                throw error;
+            }
+            const response = await request('/auth/refresh', {
+                method: 'POST',
+                body: { refreshToken: storedRefresh },
+                skipAuth: true,
+                retryOnUnauthorized: false
+            });
+            if(!response || !response.token){
+                throw new Error('Resposta de refresh inválida da API.');
+            }
+            persistAuthSession(response);
+            return response.token;
+        })().finally(() => {
+            refreshPromise = null;
+        });
+        return refreshPromise;
+    }
+
+    // Função utilitária que aplica o token, executa a chamada HTTP e tenta um
+    // refresh automático em caso de expiração (401) antes de invalidar a sessão.
+    async function request(path, { method = 'GET', body = undefined, headers = {}, skipAuth = false, retryOnUnauthorized = true } = {}){
         if(!isRemoteAvailable){
             throw new Error('API remota não configurada.');
         }
@@ -189,13 +282,15 @@
         let payload = body;
 
         if(body !== undefined && body !== null && !(body instanceof FormData)){
-            finalHeaders.set('Content-Type', 'application/json');
+            applyJsonHeaders(finalHeaders);
             payload = JSON.stringify(body);
         }
 
-        const token = getStoredToken();
-        if(token){
-            finalHeaders.set('Authorization', `Bearer ${token}`);
+        if(!skipAuth){
+            const token = getStoredToken();
+            if(token){
+                finalHeaders.set('Authorization', `Bearer ${token}`);
+            }
         }
 
         const controller = typeof AbortController === 'function' ? new AbortController() : null;
@@ -234,11 +329,18 @@
         }
 
         if(response.status === 401){
-            clearLocalData();
-            notifyAuthListeners(null);
-            const unauthorizedError = new Error('Sessão expirada. Faça login novamente.');
-            unauthorizedError.code = 'NOT_AUTHENTICATED';
-            throw unauthorizedError;
+            if(!skipAuth && retryOnUnauthorized){
+                try {
+                    await refreshSessionToken();
+                } catch (refreshError) {
+                    if(refreshError?.code === 'NOT_AUTHENTICATED' || refreshError?.status === 401 || refreshError?.status === 400){
+                        handleUnauthorized(refreshError.message);
+                    }
+                    throw refreshError;
+                }
+                return request(path, { method, body, headers, skipAuth, retryOnUnauthorized: false });
+            }
+            handleUnauthorized();
         }
 
         const contentType = response.headers.get('content-type') || '';
@@ -426,9 +528,7 @@
             throw new Error('Resposta de login inválida da API.');
         }
 
-        storeToken(response.token);
-        storeUser(response.user || null);
-        notifyAuthListeners(response.user || null);
+        persistAuthSession(response);
         await loadUserDataToLocalCache(true);
     }
 
@@ -473,9 +573,7 @@
         });
 
         if(response?.token){
-            storeToken(response.token);
-            storeUser(response.user || null);
-            notifyAuthListeners(response.user || null);
+            persistAuthSession(response);
             await loadUserDataToLocalCache(true);
         }
     }
