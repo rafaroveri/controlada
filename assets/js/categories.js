@@ -1,6 +1,7 @@
 (function(global){
     const REMOVIDAS_KEY = 'categorias_removidas';
     const REMOVIDAS_INFO_KEY = 'categorias_arquivadas_info';
+    const PERSONALIZADAS_KEY = 'categorias_usuario';
 
     const categoriasPadrao = [
         { id:'alimentacao', nome:'Alimentação', valor:'alimentacao', cor:'#ffb347' },
@@ -44,16 +45,34 @@
         return categoriasPadrao.some(cat => cat.id === id);
     }
 
+    function readPersonalizadas(){
+        try {
+            const lista = storageUtil.getJSON(PERSONALIZADAS_KEY, []);
+            return Array.isArray(lista) ? lista : [];
+        } catch (error) {
+            console.error('Erro ao carregar categorias personalizadas.', error);
+            return [];
+        }
+    }
+
+    function writePersonalizadas(lista){
+        const payload = Array.isArray(lista) ? lista : [];
+        try {
+            storageUtil.setJSON(PERSONALIZADAS_KEY, payload);
+        } catch (error) {
+            console.error('Erro ao salvar categorias personalizadas.', error);
+        }
+    }
+
     const CategoriaService = {
         getCatalogoPadrao(){
             return categoriasPadrao.slice();
         },
         getPersonalizadas(){
-            ensureLists();
-            return storage.getJSON('categorias_usuario', []);
+            return readPersonalizadas();
         },
         setPersonalizadas(lista){
-            storageUtil.setJSON('categorias_usuario', Array.isArray(lista) ? lista : []);
+            writePersonalizadas(lista);
         },
         getRemovidas(){
             const ids = getRemovedIds();
