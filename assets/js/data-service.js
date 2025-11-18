@@ -165,6 +165,8 @@
 
     function getNextCycleKey(baseKey){
         return shiftCycleKey(baseKey, 1);
+    }
+
     function getCycleIntervalForDate(data){
         const { year, month } = getCycleKeyForDate(data || new Date());
         if(!Number.isFinite(year) || !Number.isFinite(month)){
@@ -267,6 +269,7 @@
             }
             if(!gasto.status){
                 gasto.status = gastoStatus.EFETIVADO;
+            }
             if(!gasto.id){
                 gasto.id = gerarIdGasto();
                 atualizado = true;
