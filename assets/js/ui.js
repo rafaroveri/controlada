@@ -2224,6 +2224,7 @@
             document.getElementById('parcelas').value = 1;
             if(parcelasPeriodicidadeSelect){
                 parcelasPeriodicidadeSelect.value = 'mensal';
+            }
             if(valorCampo){
                 setCurrencyInputNumber(valorCampo, '');
             }
@@ -2562,6 +2563,15 @@
     const configFeedbackRegion = document.getElementById('config-feedback');
     const configBannerTemplate = document.getElementById('template-config-banner');
     const btnFullSync = document.getElementById('btn-full-sync');
+    const weeklyReportButton = document.getElementById('btn-weekly-report');
+    const weeklyReportStatus = document.getElementById('weekly-report-status');
+    const WEEKLY_REPORT_STATUS_CLASSES = [
+        'weekly-report-status--loading',
+        'weekly-report-status--success',
+        'weekly-report-status--error',
+        'weekly-report-status--info'
+    ];
+    let weeklyReportRedirectTimeout = null;
     let configBannerTimeout = null;
 
     function hideConfigFeedback(){
@@ -2681,6 +2691,56 @@
                 });
             } finally {
                 btnFullSync.disabled = false;
+            }
+        });
+    }
+
+    function updateWeeklyReportStatus(type, message){
+        if(!weeklyReportStatus){
+            return;
+        }
+        WEEKLY_REPORT_STATUS_CLASSES.forEach(cls => weeklyReportStatus.classList.remove(cls));
+        if(type){
+            weeklyReportStatus.classList.add(`weekly-report-status--${type}`);
+        }
+        weeklyReportStatus.textContent = message || '';
+    }
+
+    function scheduleWeeklyReportRedirect(){
+        if(weeklyReportRedirectTimeout){
+            window.clearTimeout(weeklyReportRedirectTimeout);
+        }
+        weeklyReportRedirectTimeout = window.setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 2200);
+    }
+
+    if(weeklyReportButton){
+        weeklyReportButton.addEventListener('click', async () => {
+            if(!remoteService || !remoteService.isRemoteAvailable || typeof remoteService.sendWeeklyEmailReport !== 'function'){
+                updateWeeklyReportStatus('info', 'Disponível apenas quando conectado à API.');
+                return;
+            }
+            if(typeof remoteService.isAuthenticated === 'function' && !remoteService.isAuthenticated()){
+                updateWeeklyReportStatus('error', 'Sua sessão expirou. Você será redirecionado para fazer login.');
+                scheduleWeeklyReportRedirect();
+                return;
+            }
+            weeklyReportButton.disabled = true;
+            updateWeeklyReportStatus('loading', 'Enviando relatório semanal...');
+            try {
+                await remoteService.sendWeeklyEmailReport();
+                updateWeeklyReportStatus('success', 'Relatório enviado para o seu e-mail.');
+            } catch (error) {
+                if(error && error.code === 'NOT_AUTHENTICATED'){
+                    updateWeeklyReportStatus('error', 'Sua sessão expirou. Você será redirecionado para fazer login.');
+                    scheduleWeeklyReportRedirect();
+                } else {
+                    const message = error?.message || 'Não foi possível enviar o relatório agora.';
+                    updateWeeklyReportStatus('error', message);
+                }
+            } finally {
+                weeklyReportButton.disabled = false;
             }
         });
     }

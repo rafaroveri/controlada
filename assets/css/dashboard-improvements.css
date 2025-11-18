@@ -87,6 +87,38 @@
     margin-bottom: 1.25rem;
 }
 
+.weekly-report-card {
+    flex-wrap: wrap;
+}
+
+.btn-weekly-report {
+    min-width: 220px;
+    white-space: normal;
+}
+
+.weekly-report-status {
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    color: #4a4a4a;
+    min-height: 1.4rem;
+}
+
+.weekly-report-status--loading {
+    color: #8a6b00;
+}
+
+.weekly-report-status--success {
+    color: #1f6b2b;
+}
+
+.weekly-report-status--error {
+    color: #a02820;
+}
+
+.weekly-report-status--info {
+    color: #1f3a68;
+}
+
 .config-sync-card h3 {
     margin: 0;
     font-size: 1.1rem;

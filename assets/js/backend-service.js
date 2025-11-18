@@ -623,6 +623,18 @@
         });
     }
 
+    async function sendWeeklyEmailReport(){
+        if(!isRemoteAvailable){
+            throw new Error('API remota não configurada.');
+        }
+        if(!getStoredToken()){
+            const error = new Error('Sessão expirada. Faça login novamente.');
+            error.code = 'NOT_AUTHENTICATED';
+            throw error;
+        }
+        return request('/reports/weekly-email', { method: 'POST' });
+    }
+
     const service = {
         isRemoteAvailable: !!isRemoteAvailable,
         isFirebaseAvailable: !!isRemoteAvailable,
@@ -634,7 +646,8 @@
         logout,
         loadUserDataToLocalCache,
         persistKey,
-        onAuthStateChanged
+        onAuthStateChanged,
+        sendWeeklyEmailReport
     };
 
     if(typeof module !== 'undefined' && module.exports){
