@@ -9,6 +9,7 @@ Controlada é uma aplicação web para gerenciamento de finanças pessoais que p
 - 💰 Controle de renda mensal
 - 📊 Registro e categorização de gastos
 - 📈 Visualização de dados através de gráficos
+- ✉️ Envio opcional de relatórios semanais por e-mail
 - 🎯 Acompanhamento de sobra mensal
 - 📱 Interface responsiva e moderna
 
@@ -69,6 +70,7 @@ cd controlada
 3. Configure a API:
    - Instale as dependências do backend `npm install`
    - Crie um arquivo `.env` na raiz com as variáveis mínimas: `DATABASE_URL`, `JWT_SECRET` e opcionalmente `PORT`
+   - Para enviar relatórios por e-mail configure também `EMAIL_SENDER` e `RESEND_API_KEY`
    - Execute `npm start` para subir a API Express (`http://localhost:3333` por padrão)
    - Defina o endpoint base da sua API REST no arquivo `assets/config/app-config.js`
 
@@ -98,6 +100,9 @@ npx http-server
 - Gráficos de gastos por categoria
 - Análise temporal dos gastos
 - Estatísticas mensais
+- Relatórios semanais enviados por e-mail com o consolidado dos últimos 7 dias
+  - Endpoint autenticado `POST /reports/weekly-email`
+  - Integração pronta para a API do [Resend](https://resend.com/) ou para pré-visualização local caso a chave não esteja definida
 
 ### ⚙️ Configurações
 - Configurar dia de início do ciclo financeiro

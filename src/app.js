@@ -1,6 +1,7 @@
 const express = require('express');
 const authRoutes = require('./routes/auth');
 const syncRoutes = require('./routes/sync');
+const reportRoutes = require('./routes/reports');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.get('/health', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/sync', syncRoutes);
+app.use('/reports', reportRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: 'Rota não encontrada.' });

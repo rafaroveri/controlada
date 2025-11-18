@@ -18,6 +18,8 @@ const DATABASE_SSL = getEnv('DATABASE_SSL', 'false').toString().toLowerCase() ==
 const JWT_SECRET = getEnv('JWT_SECRET', 'change-me-in-production');
 const JWT_EXPIRATION = getEnv('JWT_EXPIRATION', '15m');
 const REFRESH_TOKEN_TTL_DAYS = toInteger(getEnv('REFRESH_TOKEN_TTL_DAYS', '7'), 7);
+const EMAIL_SENDER = getEnv('EMAIL_SENDER', 'relatorios@controlada.app');
+const RESEND_API_KEY = getEnv('RESEND_API_KEY', '');
 
 module.exports = {
   PORT,
@@ -25,5 +27,7 @@ module.exports = {
   DATABASE_SSL,
   JWT_SECRET,
   JWT_EXPIRATION,
-  REFRESH_TOKEN_TTL_DAYS
+  REFRESH_TOKEN_TTL_DAYS,
+  EMAIL_SENDER,
+  RESEND_API_KEY
 };
