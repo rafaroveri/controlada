@@ -200,6 +200,208 @@
     }
 }
 
+/* ===== Investimentos ===== */
+.investments-header {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: flex-start;
+}
+
+.investments-subtitle {
+    margin: 0.25rem 0 0;
+    color: var(--dark-moss-green);
+    opacity: 0.8;
+    max-width: 640px;
+}
+
+.investments-tag {
+    background: rgba(154, 205, 50, 0.15);
+    border: 1px solid rgba(154, 205, 50, 0.5);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-weight: 600;
+    color: var(--dark-moss-green);
+}
+
+.investments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.investments-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.investments-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.btn-refresh-investments {
+    border: none;
+    background: rgba(77, 102, 25, 0.1);
+    border-radius: 8px;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+.btn-refresh-investments:hover,
+.btn-refresh-investments:focus-visible {
+    background: rgba(77, 102, 25, 0.2);
+}
+
+.investments-table-wrapper {
+    overflow-x: auto;
+}
+
+.investments-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 480px;
+}
+
+.investments-table th,
+.investments-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.investments-table th {
+    font-size: 0.9rem;
+    color: var(--dark-moss-green);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.investments-empty-state {
+    display: none;
+    padding: 1rem;
+    border-radius: 12px;
+    background: rgba(154, 205, 50, 0.1);
+    margin-top: 1rem;
+}
+
+.investments-empty-state.is-visible {
+    display: block;
+}
+
+.investments-empty-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.9rem;
+}
+
+.investments-storage-info {
+    font-size: 0.85rem;
+    color: rgba(0, 0, 0, 0.6);
+    margin-top: 1rem;
+}
+
+.investments-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.investments-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.investments-form input,
+.investments-form select {
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    padding: 0.75rem;
+    font-size: 1rem;
+}
+
+.investments-form-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.btn-investments-primary,
+.btn-investments-secondary {
+    border-radius: 10px;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-investments-primary {
+    background: var(--dark-moss-green);
+    color: #fff;
+}
+
+.btn-investments-secondary {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--dark-moss-green);
+}
+
+.investments-feedback {
+    min-height: 1.5rem;
+    font-size: 0.9rem;
+    margin: 0;
+    color: var(--dark-moss-green);
+}
+
+.investments-feedback[data-feedback-type="error"] {
+    color: #b30021;
+}
+
+.investments-feedback[data-feedback-type="success"] {
+    font-weight: 600;
+}
+
+.investments-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.investments-actions button {
+    border: none;
+    border-radius: 8px;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.investments-actions button[data-action="edit"] {
+    background: rgba(154, 205, 50, 0.3);
+}
+
+.investments-actions button[data-action="delete"] {
+    background: rgba(220, 53, 69, 0.15);
+    color: #b30021;
+}
+
+@media (max-width: 640px) {
+    .investments-card {
+        padding: 1.25rem;
+    }
+
+    .investments-table {
+        min-width: 100%;
+    }
+}
+
 /* ===== BOTÕES DO FORMULÁRIO ===== */
 .form-actions {
     display: flex;

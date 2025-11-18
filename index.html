@@ -643,8 +643,81 @@
                     </div>
                 </section>
                 <section id="tela-investimentos" style="display:none;">
-                    <h2>Investimentos</h2>
-                    <!-- Conteúdo de investimentos futuramente -->
+                    <div class="investments-header">
+                        <div>
+                            <h2>Investimentos</h2>
+                            <p class="investments-subtitle">Controle simples da sua carteira. Os dados desta aba ficam apenas no seu navegador (sem backend ou sincronização remota por enquanto).</p>
+                        </div>
+                        <span class="investments-tag">Armazenamento local</span>
+                    </div>
+                    <div class="investments-grid">
+                        <section class="investments-card">
+                            <header class="investments-card-header">
+                                <div>
+                                    <h3>Carteira atual</h3>
+                                    <p>Visualize rapidamente seus investimentos cadastrados.</p>
+                                </div>
+                                <button type="button" class="btn-refresh-investments" id="investments-refresh-btn" aria-label="Atualizar lista de investimentos">↻</button>
+                            </header>
+                            <div class="investments-table-wrapper">
+                                <table class="investments-table" aria-describedby="investments-storage-info">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Categoria</th>
+                                            <th>Valor investido</th>
+                                            <th>Rentabilidade (aprox.)</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="investments-table-body"></tbody>
+                                </table>
+                                <div id="investments-empty-state" class="investments-empty-state" role="status">
+                                    <p>Cadastre um investimento para iniciar o acompanhamento.</p>
+                                    <p class="investments-empty-hint">Esses dados não são enviados para servidores externos.</p>
+                                </div>
+                            </div>
+                            <p id="investments-storage-info" class="investments-storage-info">Os registros são mantidos apenas no armazenamento local do navegador.</p>
+                        </section>
+                        <section class="investments-card investments-form-card" aria-labelledby="investment-form-title">
+                            <div class="investments-card-header">
+                                <div>
+                                    <h3 id="investment-form-title">Adicionar investimento</h3>
+                                    <p>Cadastre novos aportes ou edite os existentes.</p>
+                                </div>
+                            </div>
+                            <form id="investments-form" class="investments-form">
+                                <input type="hidden" id="investment-id">
+                                <div class="form-group">
+                                    <label for="investment-name">Nome do investimento</label>
+                                    <input type="text" id="investment-name" required placeholder="Ex: Tesouro Selic, Ações...">
+                                </div>
+                                <div class="form-group">
+                                    <label for="investment-category">Categoria</label>
+                                    <select id="investment-category" required>
+                                        <option value="Renda fixa">Renda fixa</option>
+                                        <option value="Renda variável">Renda variável</option>
+                                        <option value="Previdência">Previdência</option>
+                                        <option value="Cripto">Cripto</option>
+                                        <option value="Outro">Outro</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="investment-amount">Valor investido (R$)</label>
+                                    <input type="text" id="investment-amount" class="investment-currency" placeholder="0,00" inputmode="decimal" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="investment-profitability">Rentabilidade estimada (%)</label>
+                                    <input type="number" step="0.01" id="investment-profitability" placeholder="Ex: 11.50">
+                                </div>
+                                <div class="investments-form-actions">
+                                    <button type="submit" class="btn-investments-primary" id="investment-submit-btn">Salvar investimento</button>
+                                    <button type="button" class="btn-investments-secondary" id="investment-cancel-btn">Cancelar</button>
+                                </div>
+                                <p id="investments-feedback" class="investments-feedback" role="status" aria-live="polite"></p>
+                            </form>
+                        </section>
+                    </div>
                 </section>
                 <section id="tela-configuracoes" style="display:none;">
                     <div class="config-header">
@@ -865,6 +938,7 @@
     <script src="assets/js/constants.js" defer></script>
     <script src="assets/js/data-service.js" defer></script>
     <script src="assets/js/charts.js" defer></script>
+    <script src="assets/js/services/investmentsService.js" defer></script>
     <script src="assets/js/ui.js" defer></script>
     <script src="assets/js/main.js" defer></script>
   </body>

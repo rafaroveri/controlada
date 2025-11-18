@@ -4,15 +4,17 @@
         const dataService = require('./data-service');
         const chartsManager = require('./charts');
         const constants = require('./constants');
-        module.exports = factory(window, dataService, chartsManager, constants);
+        const investmentsService = require('./services/investmentsService');
+        module.exports = factory(window, dataService, chartsManager, constants, investmentsService);
     } else {
-        window.uiManager = factory(window, window.dataService, window.chartsManager, window.appConstants);
+        window.uiManager = factory(window, window.dataService, window.chartsManager, window.appConstants, window.investmentsService);
     }
-})(typeof window !== 'undefined' ? window : globalThis, function(window, dataService, chartsManager, constants){
+})(typeof window !== 'undefined' ? window : globalThis, function(window, dataService, chartsManager, constants, investmentsService){
     const document = window.document;
     if(!document){
         return { init: function(){} };
     }
+    const investmentDataService = investmentsService || (window && window.investmentsService) || null;
     const paymentIcons = (constants && constants.PAYMENT_METHOD_ICONS) || {
         'Dinheiro': '💵',
         'PIX': '📱',
@@ -418,6 +420,19 @@
     const modalConciliacaoFechar = document.getElementById('modal-conciliacao-fechar');
     const conciliacaoBeneficiosResumo = document.getElementById('conciliacao-beneficios-list');
     const conciliacaoGastosList = document.getElementById('conciliacao-gastos-list');
+    const investmentsTableBody = document.getElementById('investments-table-body');
+    const investmentsEmptyState = document.getElementById('investments-empty-state');
+    const investmentsForm = document.getElementById('investments-form');
+    const investmentIdInput = document.getElementById('investment-id');
+    const investmentNameInput = document.getElementById('investment-name');
+    const investmentCategoryInput = document.getElementById('investment-category');
+    const investmentAmountInput = document.getElementById('investment-amount');
+    const investmentProfitabilityInput = document.getElementById('investment-profitability');
+    const investmentCancelBtn = document.getElementById('investment-cancel-btn');
+    const investmentSubmitBtn = document.getElementById('investment-submit-btn');
+    const investmentsFeedbackEl = document.getElementById('investments-feedback');
+    const investmentsRefreshBtn = document.getElementById('investments-refresh-btn');
+    const investmentFormTitle = document.getElementById('investment-form-title');
 
     inicializarMascarasDeMoeda();
     inicializarBotoesRapidosDeValor();
@@ -443,9 +458,11 @@
     restaurarFiltrosNaInterface({ skipCategoria: true });
     let rendaModalFocusTrap = null;
     let recorrentesModalFocusTrap = null;
+    let investmentEditingId = null;
 
     function inicializarMascarasDeMoeda(){
-        [valorInput, inputModalRenda, inputBeneficioSaldo].forEach(campo => attachCurrencyMask(campo));
+        [valorInput, inputModalRenda, inputBeneficioSaldo, investmentAmountInput]
+            .forEach(campo => attachCurrencyMask(campo));
     }
 
     function inicializarBotoesRapidosDeValor(){
@@ -515,6 +532,218 @@
         if(!skipCategoria && filterCategoriaHistorico){
             filterCategoriaHistorico.value = historicoPrefs.categoria || '';
         }
+    }
+
+    // --- Investimentos ---
+    function getInvestmentsFromService(){
+        if(!investmentDataService || typeof investmentDataService.list !== 'function'){
+            return [];
+        }
+        try {
+            return investmentDataService.list();
+        } catch (error) {
+            console.warn('Não foi possível ler os investimentos locais', error);
+            return [];
+        }
+    }
+
+    function setInvestmentsFeedback(message, type = 'info'){
+        if(!investmentsFeedbackEl){
+            return;
+        }
+        investmentsFeedbackEl.textContent = message || '';
+        investmentsFeedbackEl.dataset.feedbackType = type;
+    }
+
+    function toggleInvestmentFormMode(isEditing){
+        if(investmentFormTitle){
+            investmentFormTitle.textContent = isEditing ? 'Editar investimento' : 'Adicionar investimento';
+        }
+        if(investmentSubmitBtn){
+            investmentSubmitBtn.textContent = isEditing ? 'Atualizar investimento' : 'Salvar investimento';
+        }
+    }
+
+    function resetInvestmentForm({ clearFeedback = false } = {}){
+        if(investmentsForm){
+            investmentsForm.reset();
+        }
+        investmentEditingId = null;
+        if(investmentIdInput){
+            investmentIdInput.value = '';
+        }
+        setCurrencyInputNumber(investmentAmountInput, '');
+        if(investmentCategoryInput){
+            investmentCategoryInput.selectedIndex = 0;
+        }
+        toggleInvestmentFormMode(false);
+        if(clearFeedback){
+            setInvestmentsFeedback('');
+        }
+    }
+
+    function renderInvestmentsTable(listOverride){
+        if(!investmentsTableBody){
+            return;
+        }
+        const registros = Array.isArray(listOverride) ? listOverride : getInvestmentsFromService();
+        investmentsTableBody.innerHTML = '';
+        if(!registros.length){
+            if(investmentsEmptyState){
+                investmentsEmptyState.classList.add('is-visible');
+            }
+            return;
+        }
+        if(investmentsEmptyState){
+            investmentsEmptyState.classList.remove('is-visible');
+        }
+        const ordenados = registros.slice().sort((a, b) => {
+            return (b.ultimoUpdate || 0) - (a.ultimoUpdate || 0);
+        });
+        ordenados.forEach(item => {
+            const linha = document.createElement('tr');
+            const nomeTd = document.createElement('td');
+            nomeTd.textContent = item.nome || '';
+            const categoriaTd = document.createElement('td');
+            categoriaTd.textContent = item.categoria || '';
+            const valorTd = document.createElement('td');
+            valorTd.textContent = formatCurrency(item.valor || 0);
+            const rentTd = document.createElement('td');
+            const rentabilidade = Number.isFinite(item.rentabilidade) ? item.rentabilidade : 0;
+            rentTd.textContent = `${rentabilidade.toFixed(2)}%`;
+            const actionsTd = document.createElement('td');
+            actionsTd.className = 'investments-actions';
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.dataset.action = 'edit';
+            editBtn.dataset.id = item.id;
+            editBtn.textContent = '✏️ Editar';
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.dataset.action = 'delete';
+            deleteBtn.dataset.id = item.id;
+            deleteBtn.textContent = '🗑️ Excluir';
+            actionsTd.appendChild(editBtn);
+            actionsTd.appendChild(deleteBtn);
+            linha.appendChild(nomeTd);
+            linha.appendChild(categoriaTd);
+            linha.appendChild(valorTd);
+            linha.appendChild(rentTd);
+            linha.appendChild(actionsTd);
+            investmentsTableBody.appendChild(linha);
+        });
+    }
+
+    function startInvestmentEdit(id){
+        if(!id || !investmentDataService || typeof investmentDataService.getById !== 'function'){
+            return;
+        }
+        const investimento = investmentDataService.getById(id);
+        if(!investimento){
+            return;
+        }
+        investmentEditingId = investimento.id;
+        if(investmentIdInput){
+            investmentIdInput.value = investimento.id;
+        }
+        if(investmentNameInput){
+            investmentNameInput.value = investimento.nome || '';
+        }
+        if(investmentCategoryInput){
+            investmentCategoryInput.value = investimento.categoria || investmentCategoryInput.value;
+        }
+        setCurrencyInputNumber(investmentAmountInput, investimento.valor || 0);
+        if(investmentProfitabilityInput){
+            const rentabilidade = Number.isFinite(investimento.rentabilidade) ? investimento.rentabilidade : '';
+            investmentProfitabilityInput.value = rentabilidade === '' ? '' : rentabilidade;
+        }
+        toggleInvestmentFormMode(true);
+        setInvestmentsFeedback('Editando investimento existente.');
+    }
+
+    function handleInvestmentDelete(id){
+        if(!id || !investmentDataService || typeof investmentDataService.remove !== 'function'){
+            return;
+        }
+        const podeRemover = typeof window.confirm === 'function'
+            ? window.confirm('Tem certeza de que deseja remover este investimento?')
+            : true;
+        if(!podeRemover){
+            return;
+        }
+        try {
+            const listaAtualizada = investmentDataService.remove(id);
+            renderInvestmentsTable(listaAtualizada);
+            if(investmentEditingId === id){
+                resetInvestmentForm();
+            }
+            setInvestmentsFeedback('Investimento removido.');
+        } catch (error) {
+            console.error('Erro ao remover investimento', error);
+            setInvestmentsFeedback('Não foi possível remover o investimento.', 'error');
+        }
+    }
+
+    function handleInvestmentsFormSubmit(event){
+        if(event && typeof event.preventDefault === 'function'){
+            event.preventDefault();
+        }
+        if(!investmentDataService || typeof investmentDataService.save !== 'function'){
+            setInvestmentsFeedback('Serviço local de investimentos indisponível.', 'error');
+            return;
+        }
+        const nome = investmentNameInput ? investmentNameInput.value.trim() : '';
+        const categoria = investmentCategoryInput ? investmentCategoryInput.value : '';
+        const valor = getCurrencyInputNumber(investmentAmountInput);
+        const rentabilidadeValor = investmentProfitabilityInput && investmentProfitabilityInput.value !== ''
+            ? parseFloat(investmentProfitabilityInput.value)
+            : 0;
+        const payload = {
+            id: investmentEditingId || (investmentIdInput && investmentIdInput.value) || undefined,
+            nome,
+            categoria,
+            valor: Number.isNaN(valor) ? 0 : valor,
+            rentabilidade: Number.isNaN(rentabilidadeValor) ? 0 : rentabilidadeValor
+        };
+        try {
+            const listaAtualizada = investmentDataService.save(payload);
+            renderInvestmentsTable(listaAtualizada);
+            setInvestmentsFeedback(investmentEditingId ? 'Investimento atualizado!' : 'Investimento cadastrado!', 'success');
+            resetInvestmentForm();
+        } catch (error) {
+            console.error('Erro ao salvar investimento', error);
+            setInvestmentsFeedback('Não foi possível salvar o investimento.', 'error');
+        }
+    }
+
+    if(investmentsForm){
+        investmentsForm.addEventListener('submit', handleInvestmentsFormSubmit);
+    }
+    if(investmentCancelBtn){
+        investmentCancelBtn.addEventListener('click', () => resetInvestmentForm({ clearFeedback: true }));
+    }
+    if(investmentsTableBody){
+        investmentsTableBody.addEventListener('click', (event) => {
+            const botao = event.target && event.target.closest ? event.target.closest('button[data-action]') : null;
+            if(!botao){
+                return;
+            }
+            const id = botao.dataset.id;
+            if(botao.dataset.action === 'edit'){
+                startInvestmentEdit(id);
+            } else if(botao.dataset.action === 'delete'){
+                handleInvestmentDelete(id);
+            }
+        });
+    }
+    if(investmentsRefreshBtn){
+        investmentsRefreshBtn.addEventListener('click', () => {
+            renderInvestmentsTable();
+            setInvestmentsFeedback('Lista atualizada.', 'info');
+        });
+    }
+    if(investmentsForm){
+        resetInvestmentForm({ clearFeedback: true });
     }
 
     function formatCycleKeyLocal(year, month){
@@ -2428,6 +2657,9 @@
         }
         if (divCadastroCategoria) {
             divCadastroCategoria.style.display = (sectionId === 'tela-gastos') ? 'block' : 'none';
+        }
+        if(sectionId === 'tela-investimentos'){
+            renderInvestmentsTable();
         }
     }
 
