@@ -45,7 +45,8 @@ describe('categoriasService', () => {
     const categoria = categoriasService.createCategoria({ nome: 'Cursos' });
     categoriasService.archiveCategoria(categoria.id);
     expect(categoriasService.getPersonalizadas()).toHaveLength(0);
-    expect(categoriasService.getRemovidas()).toContain(categoria.id);
+    const removidas = categoriasService.getRemovidas();
+    expect(removidas.some(item => item.id === categoria.id)).toBe(true);
     expect(categoriasService.getTodas().some(cat => cat.id === categoria.id)).toBe(false);
   });
 

@@ -11,6 +11,19 @@
         { id:'outros', nome:'Outros', valor:'outros', cor:'#e0e0e0' }
     ];
 
+    function normalizeValor(nome, valor){
+        const base = (valor || nome || '').toString().trim();
+        if(!base){
+            return 'categoria';
+        }
+        return base
+            .normalize('NFD')
+            .replace(/\p{Diacritic}/gu, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-');
+    }
+
     function getRemovedIds(){
         const lista = storageUtil.getJSON(REMOVIDAS_KEY, []);
         if(Array.isArray(lista)){
