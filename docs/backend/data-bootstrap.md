@@ -12,6 +12,11 @@ Este guia explica como preparar o banco de dados PostgreSQL e obter os tokens ne
    - `JWT_EXPIRATION` (opcional): tempo de vida do access token (padrão `15m`).
    - `REFRESH_TOKEN_TTL_DAYS` (opcional): dias de validade do refresh token (padrão `7`).
 
+> **Integração Neon + Netlify:** ao conectar o add-on do Neon pelo painel do Netlify, as variáveis
+> `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` e `PGPORT` são preenchidas automaticamente.
+> Se o `DATABASE_URL` não for definido manualmente, a aplicação monta a string de conexão usando
+> esses valores e força `sslmode=require`, compatível com o TLS exigido pelo Neon.
+
 ## 2. Executar migrações e subir a API
 
 ```bash
