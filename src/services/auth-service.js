@@ -38,6 +38,7 @@ async function getProfileByUserId(client, userId) {
 }
 
 async function registerUser(payload) {
+  let inTransaction = false;
   const client = await pool.connect();
   try {
     const {
@@ -61,7 +62,6 @@ async function registerUser(payload) {
       throw createHttpError(400, 'Usuário, e-mail e senha são obrigatórios.');
     }
 
-    let inTransaction = false;
     await client.query('BEGIN');
     inTransaction = true;
     const existing = await findUserByIdentifier(client, username) || await findUserByIdentifier(client, email);
@@ -137,6 +137,7 @@ async function createSession(client, userId) {
 }
 
 async function loginUser({ identifier, password }) {
+  let inTransaction = false;
   const client = await pool.connect();
   try {
     if (!identifier || !password) {
@@ -151,7 +152,6 @@ async function loginUser({ identifier, password }) {
       throw createHttpError(401, 'Credenciais inválidas.');
     }
 
-    let inTransaction = false;
     await client.query('BEGIN');
     inTransaction = true;
     const session = await createSession(client, userRecord.id);
@@ -186,9 +186,9 @@ async function refreshSession(refreshToken) {
   if (!refreshToken) {
     throw createHttpError(400, 'refreshToken é obrigatório.');
   }
+  let inTransaction = false;
   const client = await pool.connect();
   try {
-    let inTransaction = false;
     await client.query('BEGIN');
     inTransaction = true;
     const { rows: sessionRows } = await client.query(
@@ -238,9 +238,9 @@ async function refreshSession(refreshToken) {
 }
 
 async function logoutUser(userId) {
+  let inTransaction = false;
   const client = await pool.connect();
   try {
-    let inTransaction = false;
     await client.query('BEGIN');
     inTransaction = true;
     const { rowCount } = await client.query(

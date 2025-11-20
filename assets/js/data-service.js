@@ -53,6 +53,13 @@
         PENDENTE: 'pendente'
     };
 
+    function gerarIdGasto(){
+        if(typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'){
+            return crypto.randomUUID();
+        }
+        return `gasto-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+
     function isGastoEfetivado(gasto){
         return !gasto || gasto.status !== gastoStatus.PENDENTE;
     }

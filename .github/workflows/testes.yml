@@ -1,0 +1,22 @@
+name: Testes automatizados
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Instalar dependências
+        run: npm install
+      - name: Executar testes
+        run: npm test
