@@ -262,7 +262,18 @@
                     enableWatchdog();
                     bootInterface(authService);
                 })
-                .catch(() => {
+                .catch(error => {
+                    const hasLocalSession = authWatchdog && typeof authWatchdog.ensureFreshSession === 'function'
+                        ? authWatchdog.ensureFreshSession({ onExpire: shouldForceRedirect })
+                        : !!(localStorage && localStorage.getItem && localStorage.getItem('autenticado'));
+
+                    if(hasLocalSession){
+                        console.warn('Falha na autenticação remota; continuando em modo offline.', error);
+                        enableWatchdog();
+                        bootInterface(authService);
+                        return;
+                    }
+
                     shouldForceRedirect();
                 });
             return;
