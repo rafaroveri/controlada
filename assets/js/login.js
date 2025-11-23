@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const mostrarCadastro = document.getElementById('mostrar-cadastro');
     const voltarLogin = document.getElementById('voltar-login');
     const backendService = window.backendService || window.firebaseService;
-    const hasRemote = backendService && backendService.isRemoteAvailable;
+    const hasRemote = !!(backendService && backendService.isRemoteAvailable);
     const loginFeedback = document.getElementById('login-feedback');
     const cadastroFeedback = document.getElementById('cadastro-feedback');
     const authWatchdog = window.authWatchdog;
@@ -65,6 +65,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         button.disabled = loading;
         button.textContent = loading ? 'Aguarde...' : button.dataset.originalText;
+    }
+
+    function shouldFallbackToLocal(error){
+        if(!hasRemote){
+            return true;
+        }
+        const code = error?.code || error?.status;
+        return code === 'NETWORK_ERROR' || code === 'NETWORK_TIMEOUT';
     }
 
     function mapApiError(error){
@@ -158,12 +166,21 @@ document.addEventListener('DOMContentLoaded', function() {
             setLoading(submitButton, true);
             try {
                 if(hasRemote){
-                    await backendService.loginWithUsername(usuario, senha);
-                    await backendService.loadUserDataToLocalCache(true);
-                    window.location.href = 'index.html';
-                } else {
-                    await handleLocalLogin(usuario, senha);
+                    try {
+                        await backendService.loginWithUsername(usuario, senha);
+                        await backendService.loadUserDataToLocalCache(true);
+                        window.location.href = 'index.html';
+                        return;
+                    } catch (remoteError) {
+                        console.warn('Falha no login remoto, tentando modo offline.', remoteError);
+                        if(!shouldFallbackToLocal(remoteError)){
+                            throw remoteError;
+                        }
+                        await handleLocalLogin(usuario, senha);
+                        return;
+                    }
                 }
+                await handleLocalLogin(usuario, senha);
             } catch (error) {
                 console.error('Erro ao efetuar login', error);
                 let message = hasRemote ? mapApiError(error) : (error.message || 'Não foi possível efetuar login.');
@@ -223,17 +240,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
             try {
                 if(hasRemote){
-                    await backendService.registerUser(dados);
-                    showFeedback(cadastroFeedback, 'Cadastro realizado com sucesso! Redirecionando...', 'success');
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 800);
-                } else {
-                    await handleLocalRegister(dados);
-                    cadastroForm.reset();
-                    showFeedback(loginFeedback, 'Cadastro realizado com sucesso! Faça login.', 'success');
-                    toggleCadastro(false);
+                    try {
+                        await backendService.registerUser(dados);
+                        showFeedback(cadastroFeedback, 'Cadastro realizado com sucesso! Redirecionando...', 'success');
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 800);
+                        return;
+                    } catch (remoteError) {
+                        console.warn('Falha no cadastro remoto, avaliando fallback local.', remoteError);
+                        if(!shouldFallbackToLocal(remoteError)){
+                            throw remoteError;
+                        }
+                    }
                 }
+
+                await handleLocalRegister(dados);
+                cadastroForm.reset();
+                showFeedback(loginFeedback, 'Cadastro realizado com sucesso! Faça login.', 'success');
+                toggleCadastro(false);
             } catch (error) {
                 console.error('Erro ao cadastrar usuário', error);
                 let message = hasRemote ? mapApiError(error) : (error.message || 'Não foi possível concluir o cadastro.');
