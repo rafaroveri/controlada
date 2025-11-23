@@ -1,20 +1,25 @@
 /* ===== CORREÇÕES DE ESTILOS FALTANTES ===== */
 
 /* ===== FORMULÁRIO MODERNO ===== */
+#tab-form {
+    display: grid;
+    gap: 1.5rem;
+}
+
 .modern-form-container {
-    background: linear-gradient(135deg, 
-        rgba(255, 255, 255, 0.95), 
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.95),
         rgba(248, 250, 252, 0.95));
     border-radius: 24px;
     padding: 2rem;
-    box-shadow: 
+    box-shadow:
         0 20px 60px rgba(0, 0, 0, 0.1),
         0 8px 25px rgba(0, 0, 0, 0.05),
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
     border: 1px solid rgba(77, 102, 25, 0.1);
     overflow: hidden;
     position: relative;
-    margin-top: 2rem;
+    margin-top: 0.75rem;
 }
 
 .modern-form-container::before {
@@ -28,16 +33,77 @@
     opacity: 0.8;
 }
 
-.modern-form {
+.form-hero {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2.5rem;
+}
+
+.hero-content {
+    align-self: stretch;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.hero-subtitle {
+    max-width: 560px;
+}
+
+.hero-stats {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.hero-stats .stat-card {
+    align-items: flex-start;
+    min-height: 120px;
+}
+
+.hero-stats .stat-info,
+.hero-stats .stat-content {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 0.35rem;
+}
+
+@media (max-width: 900px) {
+    #tab-form {
+        gap: 1.25rem;
+    }
+
+    .form-hero {
+        padding: 2rem 1.5rem;
+    }
+
+    .modern-form {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions-modern {
+        justify-content: center;
+    }
+}
+
+.modern-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.5rem;
+    align-items: start;
 }
 
 .form-section {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(77, 102, 25, 0.08);
+    border-radius: 18px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
 }
 
 .section-title {
@@ -65,8 +131,9 @@
 
 .input-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+    align-items: start;
 }
 
 .input-group {
@@ -412,10 +479,11 @@
 
 .form-actions-modern {
     display: flex;
-    justify-content: center;
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 2px solid rgba(154, 205, 50, 0.2);
+    justify-content: flex-end;
+    margin-top: 1rem;
+    padding-top: 1.25rem;
+    border-top: 2px solid rgba(154, 205, 50, 0.15);
+    grid-column: 1 / -1;
 }
 
 .btn-save-modern {
