@@ -503,6 +503,15 @@
             return loadUserDataToLocalCache();
         }
 
+        const hasOfflineSession = watchdog && typeof watchdog.ensureFreshSession === 'function'
+            ? watchdog.ensureFreshSession()
+            : !!(typeof localStorage !== 'undefined' && localStorage.getItem('autenticado'));
+
+        if(hasOfflineSession){
+            markOfflineAuthenticated();
+            return noopPromise;
+        }
+
         clearLocalData();
         const error = new Error('NOT_AUTHENTICATED');
         error.code = 'NOT_AUTHENTICATED';
